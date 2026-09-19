@@ -74,6 +74,11 @@ def execute(flow, index, path, monkeypatch, *, reject=False, before=None, public
 
 
 def test_actual_six_stage_composition_runs_once_with_exact_carried_revisions(tmp_path,monkeypatch):
+    from cloudworkbench import scheduler
+    # This integration test checks six-stage state/revision composition. Allow
+    # shared CI filesystem latency; dedicated control-transaction tests retain
+    # the production 50 ms deadline and exercise timeout/rollback behavior.
+    monkeypatch.setattr(scheduler, '_CHILD_CONTROL_SECONDS', 5.0)
     flow=six.flow.__wrapped__(tmp_path);original=flow.revision
     for index in range(6):
         stage=tmp_path/f'stage-{index}';stage.mkdir(mode=0o700)
