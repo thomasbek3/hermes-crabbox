@@ -1,0 +1,26 @@
+[Unit]
+Description=Private Omarchy task MCP interface
+After=network.target cloud-workbench-api.service
+Wants=cloud-workbench-api.service
+
+[Service]
+DynamicUser=true
+WorkingDirectory=/opt/omarchy-mcp
+ExecStart=/opt/omarchy-mcp/.venv/bin/python /opt/omarchy-mcp/server.py
+Restart=on-failure
+RestartSec=3
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+IPAddressDeny=any
+IPAddressAllow=localhost
+MemoryMax=256M
+TasksMax=64
+Environment=PYTHONDONTWRITEBYTECODE=1
+
+[Install]
+WantedBy=multi-user.target

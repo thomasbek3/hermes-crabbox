@@ -1,0 +1,31 @@
+# Controller cancellation supervisor
+
+`CancellationSupervisor` is a local controller primitive, not a provider cleanup verifier. It requires a trusted Store path, frozen Reservation/AttemptBinding and exact grant ID. The module introduces no schema, API, Docker, credentials, services or deployment changes. Integration into ProviderExecutor is a separate parent-owned change.
+
+```python
+with CancellationSupervisor(
+    store, reservation=reservation, grant_id=grant_id, binding=binding,
+    caller_cancel=cancel_event, disconnect=uds_disconnect_event,
+    controller_instance_id=dispatch.leases.instance_id,
+) as supervisor:
+    # Bind supervisor.cancel_check as the trusted ProviderDocker cancel_check.
+    # Dispatch performs its own durable pre-start authorization and exact cleanup.
+    candidate = execute_and_clean_provider()
+# Only construct or return a successful DispatchResult after context exit.
+```
+
+Enter performs a synchronous bounded authorization check before starting a non-daemon observer. The observer initiates checks at intervals of at most 250 ms in normal scheduling; external cancellation seen by the adapter wakes it sooner. The caller's cancel event can already combine request deadline and UDS disconnect, in which case the separate disconnect event may be omitted. `cancel_check(spec)` checks exact reservation/grant/attempt/generation/profile and uses only memory; mismatched specs are denied without revoking an unrelated grant. A stale observation older than 600 ms fails closed when the adapter next calls it. The fallback allows two poll periods plus two SQL bounds for scheduling margin; SQL work itself still has its 50 ms deadline. These are scheduling/SQL bounds, not real-time guarantees under host starvation.
+
+The independent current controller instance ID must match both the Reservation and database; a reservation from a different controller cannot authorize this observer. The observer duplicates the existing ProviderLeases reservation, grant and attempt/client revocation predicates using its own SQLite connection. It does not use Store's 30-second connection timeout or the account flock held by launch. SQLite uses a 50 ms busy timeout, a VM progress deadline, and read-write-existing mode so missing databases are not created. It never runs arbitrary provider or callback work on its thread. Predicates include the current logical owner, epoch, controller instance, held reservation, live attempt/generation, grant deadline, client and grant revocation, profile agreement and dispatch cancel fence.
+
+Parity tests compare the observer against ProviderLeases for client revocation, project-list changes, cancellation, terminal attempt, generation, deadline and reservation identity/state changes. Existing ProviderLeases grants **do not re-evaluate `clients.projects`** after issuance: changing that list alone is not a grant-revocation mechanism. This primitive preserves that semantic rather than silently inventing a different policy. Client revocation and Store's durable attempt cancellation remain effective fences.
+
+Once any cancellation or authorization/database error is detected, an in-memory cancel flag remains sticky. A short transaction revokes only the exact grant+reservation+attempt+generation, quarantines matching held request leases and fences their nonterminal dispatch rows. Cancellation is deliberately grant-wide: it fences all work authorized by this exact grant, not just one request nonce. Current reservation constraints permit at most one active request lease; completed serial requests are not reopened. It never releases a lease or confirms Docker cleanup. If SQLite is locked/unavailable, local cancellation still reaches the adapter; durable revocation is unconfirmed and retried while the supervisor is running. An unavailable DB cannot be described as a successful durable revoke.
+
+`close()` stops/wakes the observer, interrupts an active SQLite operation, joins for at most 500 ms, then performs a final authorization/cancellation check and pending revocation attempt. Cancellation, start failure and shutdown failure raise a fixed `SupervisorError`, including on otherwise-successful context exit; a `return` inside a cancelled context cannot escape as success. Error messages contain fixed codes, not arbitrary database exception text. `supervisor.receipt` reports `stopped`, `cancelled`, `reason`, `durable_revocation_confirmed` and `polls`. It is never a runtime cleanup receipt. An exception from the context body is preserved when observer shutdown completes, after revoking the grant; shutdown failure takes precedence so it cannot be hidden by the original error. A successfully closed receipt is immutable: a later external event does not retroactively change it or make repeated close fail. The adapter still rejects all work after close. Normal close is idempotent; the supervisor is single-use and its enter/close lifecycle belongs to one controller thread. Adapter checks may be called concurrently.
+
+SQLite interrupt/progress hooks cannot bound an uninterruptible filesystem/OS call. An injected stuck observer test demonstrates bounded join failure and truthful `stopped=False`; the test then releases and joins that observer. A failed join also attempts exact-grant revocation through a separate bounded connection, without overwriting the stuck observer connection handle. It reports the result separately from thread shutdown. No daemon thread is used to disguise incomplete shutdown. Production controller handling must fail the request, retain/quarantine ownership and reconcile or terminate the affected controller if its observer cannot stop. No success or credential-reuse authorization follows a shutdown failure. Close is a final observation, not atomic publication authorization: dispatch delivery must retain its durable authorization check to cover cancellation races after close.
+
+Focused tests are local and synthetic. No production cancellation timing, Docker stop latency, provider response, or live credential behavior is claimed by this module checkpoint.
+
+Fable returned REVISE for the original module. The original review and its receipt are preserved; independently verified fixes and explicit scope dispositions are in `reviews/cancellation-supervisor-disposition.md`. There was no replacement-PASS review loop.

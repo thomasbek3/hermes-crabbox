@@ -1,0 +1,17 @@
+# Build only from a locally verified immutable image; pass BASE_IMAGE explicitly.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+USER root
+RUN (if dpkg-query -W sudo >/dev/null 2>&1; then SUDO_FORCE_REMOVE=yes apt-get purge -y sudo; fi) \
+    && rm -rf /etc/sudoers.d \
+    && rm -f /etc/sudoers /usr/bin/sudo /bin/sudo /usr/local/bin/claude-bridge \
+    && mkdir -p /opt/cloudworkbench /workspace /state /run/task /run/secrets \
+    && chmod 0755 /opt/cloudworkbench /workspace /state /run/task /run/secrets
+COPY src/cloudworkbench/adapters.py /opt/cloudworkbench/adapters.py
+COPY src/cloudworkbench/entrypoint.py /opt/cloudworkbench/entrypoint.py
+COPY src/cloudworkbench/egress.py /opt/cloudworkbench/egress.py
+ENV HOME=/home/agent TMPDIR=/tmp DISABLE_AUTOUPDATER=1
+USER 1000:1000
+WORKDIR /workspace
+ENTRYPOINT []
+CMD ["python3", "--version"]

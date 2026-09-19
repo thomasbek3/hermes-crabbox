@@ -1,0 +1,32 @@
+[
+  {
+    "file": "LICENSES/crabbox-MIT.txt",
+    "source": "https://raw.githubusercontent.com/openclaw/crabbox/e4d7cc6361f827f3802cf05bbc6ad5fcdac2cdc5/LICENSE",
+    "sha256": "6ae2daf92d73e912aef033d56ce374df997ae0ad1d88ca9ef76f0c11123aae27"
+  },
+  {
+    "file": "LICENSES/hermes-agent-MIT.txt",
+    "source": "https://raw.githubusercontent.com/NousResearch/hermes-agent/3b0e392e5a6922034feccac5771041ac78467757/LICENSE",
+    "sha256": "821556e6336796450ab852d375117b48a4887e71d255794fd6318d99982a5ab6"
+  },
+  {
+    "file": "LICENSES/pstack-hermes-MIT.txt",
+    "source": "https://raw.githubusercontent.com/jmporchet/pstack-hermes/204e77a7a011c4613dc9c4913a481d77cc0ebe54/LICENSE",
+    "sha256": "bc957ca6bee02792566a1a028d105e02e247c6e77cf057061674273da77b200e"
+  },
+  {
+    "file": "LICENSES/hermes-jev-router-MIT.txt",
+    "source": "https://raw.githubusercontent.com/ussyverse/hermes-jev-router/8d8ded23927e2eadc534591df6ba77357ec385a3/LICENSE",
+    "sha256": "31315ada5ac179db3fecc307f4ecf4441fdf14df56e5706cd4e8ab0b23029f23"
+  },
+  {
+    "file": "LICENSES/agent-browser-Apache-2.0.txt",
+    "source": "https://raw.githubusercontent.com/vercel-labs/agent-browser/aff6125c023b810ea3f2e5deec5379e9a4270bdc/LICENSE",
+    "sha256": "014bb31e83d5c2e76aea1cc6e82217346ab41362f32cb355ad0f5c10aa0aeaff"
+  },
+  {
+    "file": "LICENSES/pstack-original-MIT.txt",
+    "source": "https://raw.githubusercontent.com/cursor/plugins/6fecddba65801f9b9c08b8b328d998ee5b09d290/pstack/LICENSE",
+    "sha256": "bc957ca6bee02792566a1a028d105e02e247c6e77cf057061674273da77b200e"
+  }
+]

@@ -1,0 +1,40 @@
+"""Independent acceptance, executed in an offline read-only workspace container."""
+import importlib.util
+import json
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+
+spec=importlib.util.spec_from_file_location('status_summary','/workspace/status_summary.py')
+module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+states=('queued','preparing','running','verifying','completed','failed','cancelled','interrupted')
+records=[{'id':str(i),'state':s} for i,s in enumerate(states)]
+assert module.summarize(records)=={'total':8,'active':4,'terminal':4,'by_state':dict.fromkeys(states,1)}
+assert module.summarize([])=={'total':0,'active':0,'terminal':0,'by_state':dict.fromkeys(states,0)}
+invalid=[None,{},'bad',[None],[{}],[{'id':'','state':'queued'}],
+    [{'id':1,'state':'queued'}],[{'id':'a','state':'unknown'}],
+    [{'id':'a','state':'queued'},{'id':'a','state':'completed'}]]
+for value in invalid:
+    try:module.summarize(value)
+    except ValueError:pass
+    else:raise AssertionError('invalid input accepted')
+count=11
+with tempfile.TemporaryDirectory() as directory:
+    path=Path(directory)/'input.json'
+    def cli(value,strict=False):
+        path.write_text(json.dumps(value))
+        return subprocess.run([sys.executable,'/workspace/status_summary.py',str(path),'--json',
+            *(['--strict'] if strict else [])],capture_output=True,text=True,timeout=10)
+    answer=cli(records);assert answer.returncode==0 and json.loads(answer.stdout)==module.summarize(records)
+    answer=cli(invalid[-1]);assert answer.returncode==2 and answer.stderr.strip()
+    count+=2
+    if '--strict' in sys.argv:
+        for state in states:
+            value=[{'id':'a','state':state}];answer=cli(value,True)
+            assert answer.returncode==(0 if state in ('completed','cancelled') else 1),state
+            assert json.loads(answer.stdout)==module.summarize(value)
+        answer=cli([],True);assert answer.returncode==0
+        answer=cli(invalid[-1],True);assert answer.returncode==2
+        count+=10
+print(json.dumps({'acceptance':'passed','cases':count,'strict_followup':'--strict' in sys.argv}))

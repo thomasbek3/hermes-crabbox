@@ -1,0 +1,22 @@
+{
+  "hermes_commit": "3b0e392e5a6922034feccac5771041ac78467757",
+  "upstream_file": "model_tools.py",
+  "upstream_sha256": "432ab8bcf79bbac321e76385aaa15ad6056999cbf372917f0dbf0ab13e2679dc",
+  "patch_sha256": "0bff35e8870711081cd4e3a3de526ab73a4ecee3fbe3ad37aded921a6257e907",
+  "patched_sha256": "ebd4c5a8a0c593dba3768579e0a92cee61cd564456523ddf85d212346d299660",
+  "tools": [
+    "cloud_request_roles",
+    "cloud_get_role_results"
+  ],
+  "identity_bounds": "exact str,1..256 ASCII graphic characters (no whitespace/control)",
+  "scope": "isolated cloud candidate only; no production activation",
+  "identity_trust": "runtime/provider correlation; may repeat or be model-influenced; never controller authorization",
+  "qualified_entrypoint": "isolated synchronous headless registry-dispatch fixture only; no live entrypoint/provider qualification",
+  "dependencies_sha256": {
+    "model_tools.py": "432ab8bcf79bbac321e76385aaa15ad6056999cbf372917f0dbf0ab13e2679dc",
+    "agent/tool_executor.py": "6fd1534a7089bcf5dfe473a93d9303d21f9b818d3350802159cae38103a8cd2a",
+    "tools/approval_context.py": "2ffc3f6792670ac4dd4c560284db13908b52102454cb4359a8275d10c7679b11",
+    "tools/registry.py": "5a3e232b8b0b6ec64a994efe1dc7309d9c733c813a3284d6df44f67cc1cb24a2",
+    "hermes_cli/plugins.py": "e113aa4b4af31c7b78f5ab73d64d593e54587bf5261deacd44b0e72f3e4f6b3e"
+  }
+}

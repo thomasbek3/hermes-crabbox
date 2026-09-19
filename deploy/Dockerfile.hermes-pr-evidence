@@ -1,0 +1,16 @@
+ARG BASE_IMAGE=cloud-workbench-hermes-pstack:20260919
+FROM ${BASE_IMAGE}
+USER root
+ARG EVIDENCE_MODE=single
+LABEL io.cloudworkbench.evidence-mode=${EVIDENCE_MODE}
+COPY cloud-evidence /opt/hermes/trusted-plugins/cloud-evidence
+COPY agent-browser-native /opt/cloud-tools/agent-browser-native
+COPY agent-browser-container /usr/local/bin/agent-browser
+COPY crabbox_guest.py /opt/cloudworkbench/crabbox_guest.py
+COPY crabbox_guest.py /opt/cloud-pstack/cloudworkbench/crabbox_guest.py
+COPY pstack_child.py /opt/cloud-pstack/cloudworkbench/pstack_child.py
+RUN chmod 0755 /opt/cloud-tools/agent-browser-native /usr/local/bin/agent-browser \
+    && chmod -R go-w /opt/hermes/trusted-plugins/cloud-evidence \
+    && agent-browser --version \
+    && ffmpeg -hide_banner -encoders 2>/dev/null | grep -q libx264
+WORKDIR /workspace

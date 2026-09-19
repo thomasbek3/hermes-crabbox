@@ -1,0 +1,55 @@
+"""T18: supplied-input report delivery, with a content rubric and no software tests."""
+import datetime
+import hashlib
+import json
+from pathlib import Path
+import runpy
+import socket
+import time
+
+helpers = runpy.run_path(str(Path(__file__).with_name('http-smoke.py')))
+call = helpers['call']
+receipt = {'host': socket.gethostname(), 'started_at': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+           'provider_called': True, 'software_tests_claimed': False, 'passed': False}
+source = b'reservation,status,nights,revenue_usd\nA,completed,3,450\nB,cancelled,2,0\nC,completed,2,340\nD,completed,1,210\n'
+try:
+    item = call('POST', '/v1/inputs', {'name':'reservations.csv','mime':'text/csv'})
+    call('PUT', '/v1/inputs/'+item['id']+'/content', source)
+    created = call('POST','/v1/sessions', {
+        'project_id':'sample-document','agent':'claude','environment_version':'document-v1','input_ids':[item['id']],
+        'goal':'Read the supplied reservations CSV. Produce report.md with a table summarizing completed reservation count, completed nights, completed revenue USD, average completed revenue per night, and cancelled reservation count. Explain that cancelled rows are excluded from completed totals. Cite reservations.csv as the source and distinguish these synthetic sample figures from business-wide results. Also write summary.json with exactly these keys: completed_reservations, completed_nights, completed_revenue_usd, average_revenue_per_completed_night, cancelled_reservations. No software changes or test suite are requested. Do not invent missing data or external research.',
+        'acceptance':[{'id':'report-rubric','description':'Report totals match supplied CSV; source and cancellation treatment are explicit; no invented data or software test claims.','mandatory':True}]})
+    sid=receipt['session_id']=created['session_id']
+    deadline=time.monotonic()+300
+    while time.monotonic()<deadline:
+        result=call('GET','/v1/sessions/'+sid)
+        if result['state'] in {'completed','failed','cancelled','interrupted'}:break
+        time.sleep(.5)
+    assert result['state']=='completed',result['state']
+    attempt=result['attempts'][-1]
+    assert attempt['outcome']=='unverified' and attempt['result']['checks']==[], 'Document must not be marked software-verified'
+    receipt['service_outcome']=attempt['outcome']
+    receipt['image_digest']=attempt['result']['image_digest']
+    receipt['attempt_id']=attempt['id']
+    receipt['artifacts']=[]
+    content={}
+    for artifact in call('GET','/v1/sessions/'+sid+'/artifacts')['artifacts']:
+        body,_=call('GET','/v1/artifacts/'+artifact['id']+'/content',raw=True)
+        assert hashlib.sha256(body).hexdigest()==artifact['sha256']
+        content[artifact['path']]=body
+        receipt['artifacts'].append({k:artifact[k] for k in ['path','bytes','sha256']})
+    summary=json.loads(content['summary.json'])
+    expected={'completed_reservations':3,'completed_nights':6,'completed_revenue_usd':1000,'average_revenue_per_completed_night':round(1000/6,2),'cancelled_reservations':1}
+    assert set(summary)==set(expected)
+    for key,value in expected.items():
+        assert type(summary[key]) in (int,float) and abs(summary[key]-value)<.01,key
+    receipt['source_sha256']=hashlib.sha256(source).hexdigest()
+    receipt['computed_totals_match']=True
+    receipt['report_markdown_for_content_review']=content['report.md'].decode()
+    receipt['rubric_status']='numeric totals passed; prose awaits explicit reviewer assessment'
+    receipt['passed']=True
+except Exception as exc:
+    receipt['error']=type(exc).__name__+': '+str(exc)[:300]
+receipt['finished_at']=datetime.datetime.now(datetime.timezone.utc).isoformat()
+print(json.dumps(receipt,indent=2),flush=True)
+raise SystemExit(0 if receipt['passed'] else 1)

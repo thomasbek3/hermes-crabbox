@@ -1,0 +1,19 @@
+# Candidate only. The operator verifies this exact local base ID before building.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+USER root
+COPY hermes /opt/hermes/source
+COPY pstack /opt/hermes/trusted-plugins/pstack
+COPY source-manifest.json /opt/hermes/source-manifest.json
+ENV UV_PROJECT_ENVIRONMENT=/opt/hermes/venv UV_LINK_MODE=copy UV_CONCURRENT_BUILDS=1 UV_CONCURRENT_DOWNLOADS=2 UV_CONCURRENT_INSTALLS=2
+RUN uv sync --project /opt/hermes/source --python /opt/uv/tools/hermes-agent/bin/python \
+    --no-python-downloads --frozen --no-dev --no-default-groups --extra anthropic \
+    && /opt/hermes/venv/bin/python -c 'import importlib.metadata; assert importlib.metadata.version("hermes-agent")=="0.21.3"' \
+    && uv pip freeze --python /opt/hermes/venv/bin/python > /opt/hermes/installed-packages.txt \
+    && mkdir -p /opt/hermes/empty-bundled \
+    && chmod -R go-w /opt/hermes
+ENV PATH=/opt/hermes/venv/bin:/usr/local/bin:/usr/bin:/bin
+USER 1000:1000
+WORKDIR /workspace
+ENTRYPOINT []
+CMD ["/opt/hermes/venv/bin/python", "--version"]

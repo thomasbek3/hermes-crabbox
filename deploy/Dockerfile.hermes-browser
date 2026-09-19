@@ -1,0 +1,20 @@
+# Add browser tools to the existing pinned Hermes image. No browser runs at build time.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+USER root
+ARG PLAYWRIGHT_VERSION=1.63.0
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright
+RUN cat /etc/os-release \
+    && /opt/hermes/venv/bin/python -m ensurepip --upgrade \
+    && /opt/hermes/venv/bin/python -m pip install --no-cache-dir "playwright==${PLAYWRIGHT_VERSION}" \
+    && /opt/hermes/venv/bin/python -m playwright install --with-deps chromium \
+    && chmod -R a+rX,go-w /opt/playwright \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /opt/cloud-tools
+COPY BROWSER.md /opt/cloud-tools/BROWSER.md
+RUN /opt/hermes/venv/bin/python -c 'import importlib.metadata as m,json,pathlib; p=pathlib.Path("/opt/cloud-tools/browser-installation.json"); p.write_text(json.dumps({"playwright":m.version("playwright"),"hermes":m.version("hermes-agent"),"python":"/opt/hermes/venv/bin/python","browsers_path":"/opt/playwright","browser_executables":sorted(str(x) for x in pathlib.Path("/opt/playwright").rglob("*") if x.name in ("chrome","headless_shell","chrome-headless-shell") and x.is_file()),"browser_launched":False},sort_keys=True,indent=2)+"\n"); print(p.read_text())' \
+    && chmod -R a+rX,go-w /opt/cloud-tools
+USER 1000:1000
+WORKDIR /workspace
+ENTRYPOINT []
+CMD ["/opt/hermes/venv/bin/python", "--version"]

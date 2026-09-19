@@ -1,0 +1,11 @@
+ARG BASE_IMAGE=cloud-workbench-hermes-desktop:20260918
+FROM ${BASE_IMAGE}
+USER root
+COPY cloudworkbench /opt/cloud-pstack/cloudworkbench
+COPY cloud-pstack /opt/hermes/trusted-plugins/cloud-pstack
+COPY patch-hermes-pstack.py /opt/cloud-tools/patch-hermes-pstack.py
+COPY crabbox_guest.py /opt/cloudworkbench/crabbox_guest.py
+RUN /opt/hermes/venv/bin/python /opt/cloud-tools/patch-hermes-pstack.py --source /opt/hermes/source \
+    && /opt/hermes/venv/bin/python -c "import site; from pathlib import Path; Path(site.getsitepackages()[0], 'cloud_pstack.pth').write_text('/opt/cloud-pstack\\n')" \
+    && chmod -R go-w /opt/cloud-pstack /opt/hermes/trusted-plugins/cloud-pstack
+WORKDIR /workspace

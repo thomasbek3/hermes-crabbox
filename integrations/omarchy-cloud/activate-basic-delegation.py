@@ -1,0 +1,164 @@
+#!/usr/bin/env python3
+"""Publish the prepared basic Hermes project while preserving existing jobs."""
+from __future__ import annotations
+import argparse
+import hashlib
+import json
+import os
+from pathlib import Path
+import secrets
+import socket
+import sqlite3
+import subprocess
+import sys
+import time
+
+ROOT = Path('/var/lib/cloud-workbench')
+PACKAGE = Path('/opt/cloud-workbench/src/cloudworkbench')
+SERVICES = ('cloud-workbench-api', 'cloud-workbench-worker')
+EXPECTED = {
+    'store.py': 'f90f8feb8b6ce945eaff423a5aba2659d0f717f2adce606dab7766c11a7f5199',
+    'runner.py': '89e3cb358ed1f6533080067f03103444048d3e015cb5d235e43f4cae64048bbe',
+}
+LIVE = "'preparing','running','waiting_input','awaiting_approval','checkpointing','held','verifying'"
+
+
+def require(condition, code):
+    if not condition:
+        raise RuntimeError(code)
+
+
+def digest(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def run(*args):
+    result = subprocess.run(args, capture_output=True, timeout=45)
+    require(result.returncode == 0, 'service_operation_failed')
+    return result.stdout.decode().strip()
+
+
+def atomic(path, raw, mode=0o600, gid=0):
+    temporary = path.with_name(path.name + '.pending')
+    fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, mode)
+    with os.fdopen(fd, 'wb') as stream:
+        os.fchmod(stream.fileno(), mode)
+        os.fchown(stream.fileno(), 0, gid)
+        stream.write(raw)
+        stream.flush()
+        os.fsync(stream.fileno())
+    os.replace(temporary, path)
+    fd = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
+def encoded(value):
+    return (json.dumps(value, indent=2, sort_keys=True) + '\n').encode()
+
+
+def idle(database):
+    with sqlite3.connect(database.as_uri() + '?mode=ro', uri=True) as db:
+        require(db.execute('SELECT version FROM schema_version').fetchall() == [(1,)], 'schema_changed')
+        require(not db.execute("SELECT 1 FROM attempts WHERE state NOT IN ('completed','failed','cancelled','interrupted','paused') LIMIT 1").fetchone(), 'jobs_not_idle')
+    require(not run('/usr/bin/docker', 'ps', '-aq', '--filter', 'label=io.cloudworkbench.owner=primary'), 'owned_containers_present')
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--prepared', required=True, type=Path)
+    parser.add_argument('--source', required=True, type=Path)
+    args = parser.parse_args()
+    require(os.geteuid() == 0 and socket.gethostname() == 'omarchy', 'root_on_omarchy_required')
+    for path in (args.prepared, args.source):
+        require(path.is_absolute() and path.resolve() == path and path.is_relative_to(ROOT / 'qualifications'), 'stage_path_invalid')
+        require(path.stat().st_uid == 0 and not path.stat().st_mode & 0o022, 'stage_not_protected')
+    prep = json.loads((args.prepared / 'preparation.json').read_text())
+    for name, expected in prep['prepared_files_sha256'].items():
+        require(Path(name).name == name and digest(args.prepared / name) == expected, 'prepared_file_changed')
+    configs = {name: Path('/etc/cloud-workbench') / (name + '.json') for name in ('api', 'worker')}
+    for name, path in configs.items():
+        require(digest(path) == prep['source_config_sha256'][name], 'live_config_changed')
+    for name, expected in EXPECTED.items():
+        require(digest(PACKAGE / name) == expected, 'live_source_changed')
+    destination = Path(prep['registry_destination'])
+    require(destination == ROOT / 'environments/hermes-tasks-v1.db' and not destination.exists(), 'registry_destination_exists')
+    database = ROOT / 'control/state.db'
+    backup = ROOT / 'operator-backups/basic-delegation-20260918'
+    require(not backup.exists(), 'deployment_already_attempted')
+    idle(database)
+    legacy_pid = run('systemctl', 'show', 'cloudd', '--property=MainPID', '--value')
+    backup.mkdir(mode=0o700)
+    receipt = {'started_at': time.time(), 'stage': 'preparing', 'host': socket.gethostname(),
+               'source_sha256': {name: digest(args.source / name) for name in EXPECTED},
+               'capacity': 3, 'hermes_capacity': 3, 'new_job_runs': 0, 'verification_runs': 0,
+               'workflow_status': 'unverified', 'backup': str(backup)}
+    def record():
+        atomic(backup / 'deployment.json', encoded(receipt))
+    record()
+    try:
+        for service in SERVICES:
+            run('systemctl', 'stop', service)
+        idle(database)
+        for name, path in configs.items():
+            require(digest(path) == prep['source_config_sha256'][name], 'live_config_changed')
+            atomic(backup / (name + '.json'), path.read_bytes())
+        for name, expected in EXPECTED.items():
+            require(digest(PACKAGE / name) == expected, 'live_source_changed')
+            atomic(backup / name, (PACKAGE / name).read_bytes())
+        with sqlite3.connect(database.as_uri() + '?mode=ro', uri=True) as source, sqlite3.connect(backup / 'state.db') as saved:
+            source.backup(saved)
+        (backup / 'state.db').chmod(0o600)
+        receipt['stage'] = 'publication'
+        record()
+        with sqlite3.connect(database) as db:
+            db.execute('BEGIN IMMEDIATE')
+            old = db.execute("SELECT sql FROM sqlite_master WHERE name='one_live_credential'").fetchone()
+            require(old and old[0] == 'CREATE UNIQUE INDEX one_live_credential ON attempts(agent) WHERE state IN (' + LIVE + ')', 'unexpected_credential_index')
+            db.execute('DROP INDEX one_live_credential')
+            db.execute("CREATE UNIQUE INDEX one_live_credential ON attempts(agent) WHERE agent!='hermes' AND state IN (" + LIVE + ')')
+        for name in EXPECTED:
+            atomic(PACKAGE / name, (args.source / name).read_bytes(), 0o644)
+        atomic(destination, (args.prepared / 'environments.db').read_bytes(), 0o640, 960)
+        atomic(destination.with_suffix('.provenance.json'), (args.prepared / 'image-readiness-provenance.json').read_bytes(), 0o640, 960)
+        for name, path in configs.items():
+            atomic(path, (args.prepared / (name + '.json')).read_bytes(), 0o640, 960)
+        from cloudworkbench.store import Store
+        store = Store(database, shared_group=True)
+        clients_root = ROOT / 'control/delegation-clients'
+        clients_root.mkdir(mode=0o700, exist_ok=True)
+        clients = {}
+        for name in ('local-mini', 'ai-mini'):
+            token_path = clients_root / (name + '.token')
+            require(not token_path.exists(), 'caller_credential_already_exists')
+            token = secrets.token_urlsafe(48)
+            atomic(token_path, (token + '\n').encode())
+            client = store.add_client('Omarchy delegation ' + name, token,
+                                      ['submit', 'observe', 'retrieve', 'cancel'], ['hermes-tasks'])
+            clients[name] = {'id': client['id'], 'token_path': str(token_path)}
+        receipt['clients'] = clients
+        receipt['stage'] = 'starting'
+        record()
+        for service in reversed(SERVICES):
+            run('systemctl', 'start', service)
+        receipt['services'] = {service: run('systemctl', 'is-active', service) for service in SERVICES}
+        require(run('systemctl', 'show', 'cloudd', '--property=MainPID', '--value') == legacy_pid, 'legacy_service_changed')
+        receipt['stage'] = 'activated'
+    except Exception as exc:
+        receipt['error'] = str(exc) if type(exc) is RuntimeError else type(exc).__name__
+        receipt['recovery'] = 'Inspect retained backup and published state; do not blindly rerun.'
+        raise
+    finally:
+        receipt['finished_at'] = time.time()
+        record()
+    print(json.dumps(receipt, indent=2))
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except Exception as exc:
+        print(json.dumps({'activated': False, 'error': str(exc) if type(exc) is RuntimeError else type(exc).__name__}))
+        sys.exit(1)

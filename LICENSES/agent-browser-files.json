@@ -1,0 +1,92 @@
+[
+  {
+    "path": "integrations/hermes-pr-evidence/skills/agent-browser/LICENSE",
+    "upstream_path": "LICENSE",
+    "sha256": "014bb31e83d5c2e76aea1cc6e82217346ab41362f32cb355ad0f5c10aa0aeaff",
+    "modified": false
+  },
+  {
+    "path": "integrations/hermes-pr-evidence/skills/agent-browser/SKILL.md",
+    "upstream_path": "skill-data/core/SKILL.md",
+    "sha256": "9c02e42ab9bb80b78a28c7f2eba422b6f4f7aa34b37c5fba9473208ab1ec718b",
+    "modified": false
+  },
+  {
+    "path": "integrations/hermes-pr-evidence/skills/agent-browser/references/authentication.md",
+    "upstream_path": "skill-data/core/references/authentication.md",
+    "sha256": "c131408e7c17c92d5e9bf3d8692596232281946e306789796cd767e55f0903d5",
+    "modified": false
+  },
+  {
+    "path": "integrations/hermes-pr-evidence/skills/agent-browser/references/commands.md",
+    "upstream_path": "skill-data/core/references/commands.md",
+    "sha256": "5b63cc518abe01bbb3c0d274f54689c4620f426e1c8c9b296352d286f3e26877",
+    "modified": false
+  },
+  {
+    "path": "integrations/hermes-pr-evidence/skills/agent-browser/references/profiling.md",
+    "upstream_path": "skill-data/core/references/profiling.md",
+    "sha256": "bfdbe03f0f1da1a20f79d6fcb1ce889bdb43836756934cbf59af4b94e7a80dee",
+    "modified": false
+  },
+  {
+    "path": "integrations/hermes-pr-evidence/skills/agent-browser/references/proxy-support.md",
+    "upstream_path": "skill-data/core/references/proxy-support.md",
+    "sha256": "53565b92ca2421c3dcf0e71a31fb911f717da56f97ca5f6ef1623ecfd8b72b5a",
+    "modified": false
+  },
+  {
+    "path": "integrations/hermes-pr-evidence/skills/agent-browser/references/session-management.md",
+    "upstream_path": "skill-data/core/references/session-management.md",
+    "sha256": "d57c6ad8f72adf4fe4c83f414d8a360927d740e344905fe666d2af739be497ed",
+    "modified": false
+  },
+  {
+    "path": "integrations/hermes-pr-evidence/skills/agent-browser/references/snapshot-refs.md",
+    "upstream_path": "skill-data/core/references/snapshot-refs.md",
+    "sha256": "fa003be0433f812ba57bdd457fb67abcb9feb407ece23cb80643d7cac17ebccb",
+    "modified": false
+  },
+  {
+    "path": "integrations/hermes-pr-evidence/skills/agent-browser/references/streaming.md",
+    "upstream_path": "skill-data/core/references/streaming.md",
+    "sha256": "92d10ccffb1d15f2d00179b3f8ae28797e483d7efb9e980633d50cca54793efc",
+    "modified": false
+  },
+  {
+    "path": "integrations/hermes-pr-evidence/skills/agent-browser/references/trust-boundaries.md",
+    "upstream_path": "skill-data/core/references/trust-boundaries.md",
+    "sha256": "011b72f87af0002beb8475b9c50baf70067737e89ca9f09ff6ce2b03a456b33c",
+    "modified": false
+  },
+  {
+    "path": "integrations/hermes-pr-evidence/skills/agent-browser/references/video-recording.md",
+    "upstream_path": "skill-data/core/references/video-recording.md",
+    "sha256": "8a669ed6dc77e0c53d8f8b2e9386751c677e1bbdc0d1d8d54b7df4c0313a7743",
+    "modified": false
+  },
+  {
+    "path": "integrations/hermes-pr-evidence/skills/agent-browser/references/webgpu.md",
+    "upstream_path": "skill-data/core/references/webgpu.md",
+    "sha256": "f7307651439a45fb8b6dcdfc29c29bf8c70736245282bfee367bdc0b5d2fc94d",
+    "modified": false
+  },
+  {
+    "path": "integrations/hermes-pr-evidence/skills/agent-browser/templates/authenticated-session.sh",
+    "upstream_path": "skill-data/core/templates/authenticated-session.sh",
+    "sha256": "3a44ce1ca1d6b8ff7b049e8456fb9cd383afa3e76f48532cc6dc836dc0f449e7",
+    "modified": false
+  },
+  {
+    "path": "integrations/hermes-pr-evidence/skills/agent-browser/templates/capture-workflow.sh",
+    "upstream_path": "skill-data/core/templates/capture-workflow.sh",
+    "sha256": "caa5fa01b654cab0849d77c7fcb2e07a64b2ba3b7bff4718e9a19d3c8d793177",
+    "modified": false
+  },
+  {
+    "path": "integrations/hermes-pr-evidence/skills/agent-browser/templates/form-automation.sh",
+    "upstream_path": "skill-data/core/templates/form-automation.sh",
+    "sha256": "f1b2ef8220d214287d68336512938adfe9bf6e9c2b85e2d66f3239bafc666a6a",
+    "modified": false
+  }
+]

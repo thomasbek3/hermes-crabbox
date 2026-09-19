@@ -1,0 +1,39 @@
+#!/usr/bin/env python3
+"""Inspect the real baked CLI without credentials, network or inference."""
+from pathlib import Path
+import json,subprocess,shlex,uuid,datetime
+root=Path(__file__).resolve().parents[1]
+candidate=json.loads((root/'evidence/provider-image-candidate.json').read_text())
+owner='provider-cli-'+uuid.uuid4().hex[:12];name='cwb-'+owner
+image=candidate['image_id']
+program="""import hashlib,pathlib,subprocess,json
+p=pathlib.Path('/usr/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe')
+sha=hashlib.sha256(p.read_bytes()).hexdigest()
+assert sha=='15e2d05148f801b5774032faad87e624ecd172e9903288bda448b892eb58fa07'
+version=subprocess.run([str(p),'--version'],capture_output=True,text=True,timeout=15)
+helptext=subprocess.run([str(p),'--help'],capture_output=True,text=True,timeout=15)
+assert version.returncode==0 and '2.1.274' in version.stdout
+assert helptext.returncode==0
+flags=['--print','--output-format','--json-schema','--tools','--disallowedTools','--strict-mcp-config','--mcp-config','--setting-sources','--no-session-persistence','--effort','--model']
+assert all(flag in helptext.stdout for flag in flags)
+print(json.dumps({'binary_sha256':sha,'version':version.stdout.strip(),'flags_present':flags,'help_sha256':hashlib.sha256(helptext.stdout.encode()).hexdigest(),'credential_or_inference_calls':False}))
+"""
+ssh=['ssh','-o','BatchMode=yes','-o','ConnectTimeout=10','thomas@100.83.74.92']
+assert subprocess.check_output(ssh+['hostname'],text=True).strip()=='omarchy'
+args=['docker','run','--name',name,'--label','io.cloudworkbench.probe-owner='+owner,'--network','none','--read-only','--user','958:959','--cap-drop','ALL','--security-opt','no-new-privileges','--memory','512m','--pids-limit','64','--tmpfs','/tmp:rw,noexec,nosuid,nodev,size=32m,mode=1777','-e','HOME=/tmp','--entrypoint','/opt/hermes/venv/bin/python',image,'-c',program]
+receipt={'at':datetime.datetime.now(datetime.timezone.utc).isoformat(),'host':'omarchy','image':image,'passed':False,'real_credentials':False,'provider_calls':False}
+try:
+ result=subprocess.run(ssh+[shlex.join(args)],capture_output=True,text=True,timeout=45)
+ receipt['exit']=result.returncode
+ if result.returncode==0:receipt['result']=json.loads(result.stdout);receipt['passed']=True
+ else:receipt['failure']='offline_cli_probe_failed';receipt['stderr']=result.stderr[-3000:]
+finally:
+ meta=json.loads(subprocess.check_output(ssh+[shlex.join(['docker','inspect',name])],text=True))[0]
+ assert meta['Config']['Labels']['io.cloudworkbench.probe-owner']==owner and meta['Image']==image
+ receipt['host_config']=meta['HostConfig']
+ subprocess.run(ssh+[shlex.join(['docker','rm','-f',name])],check=True,capture_output=True)
+ remaining=subprocess.check_output(ssh+[shlex.join(['docker','ps','-aq','--filter','label=io.cloudworkbench.probe-owner='+owner])],text=True)
+ assert not remaining.strip();receipt['remaining']=remaining.splitlines()
+ (root/'evidence/provider-cli-offline.json').write_text(json.dumps(receipt,indent=2)+'\n')
+print(json.dumps({k:v for k,v in receipt.items() if k!='host_config'},indent=2))
+raise SystemExit(0 if receipt['passed'] else 1)

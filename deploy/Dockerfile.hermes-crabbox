@@ -1,0 +1,16 @@
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+USER root
+ENV PATH=/opt/hermes/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends openssh-server openssh-client sudo rsync git ca-certificates curl bash python3 \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --gid 959 cloud-job && useradd --uid 958 --gid 959 --create-home --shell /bin/bash crabbox \
+    && mkdir -p /opt/cloudworkbench /run/sshd && rm -f /etc/ssh/ssh_host_*
+COPY BROWSER.crabbox.md /opt/cloud-tools/BROWSER.md
+COPY crabbox_guest.py /opt/cloudworkbench/crabbox_guest.py
+RUN chmod 0644 /opt/cloudworkbench/crabbox_guest.py
+WORKDIR /workspace
+COPY crabbox-init.sh /usr/local/bin/crabbox-init
+RUN chmod 0755 /usr/local/bin/crabbox-init
+ENTRYPOINT ["/usr/local/bin/crabbox-init"]
+CMD ["/usr/sbin/sshd", "-D"]

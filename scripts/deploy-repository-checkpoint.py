@@ -1,0 +1,138 @@
+#!/usr/bin/env python3
+"""Scoped operator deployment of six host modules and immutable demo environments."""
+from datetime import datetime,timezone
+import copy,grp,hashlib,importlib.util,json,os
+from pathlib import Path
+import shutil,socket,sqlite3,subprocess,sys,time
+
+stage=Path(__file__).resolve().parent
+source=stage/'snapshot'
+expected=json.loads((source/'manifest.json').read_text())
+files=[f'src/cloudworkbench/{name}.py' for name in ('api','runner','store','environments','repositories','artifacts')]
+target=Path('/opt/cloud-workbench')
+configs={name:Path('/etc/cloud-workbench')/(name+'.json') for name in ('worker','api')}
+config_bytes={name:path.read_bytes() for name,path in configs.items()}
+config={name:json.loads(data) for name,data in config_bytes.items()}
+worker=config['worker']; database=Path(worker['database'])
+now=lambda:datetime.now(timezone.utc).isoformat()
+sha=lambda path:hashlib.sha256(Path(path).read_bytes()).hexdigest()
+run=lambda argv,**kw:subprocess.run(argv,check=True,capture_output=True,text=True,timeout=60,**kw).stdout.strip()
+services=['cloud-workbench-api','cloud-workbench-worker']
+receipt={'schema_version':1,'started_at':now(),'host':socket.gethostname(),'uid':os.getuid(),
+         'driver_sha256':sha(__file__),'image_digest':worker['runtime']['image'],'passed':False,'stage':'validate',
+         'source_sha256':{name:sha(source/name) for name in files},
+         'config_sha256_before':{name:hashlib.sha256(data).hexdigest() for name,data in config_bytes.items()},
+         'legacy_pid_before':run(['systemctl','show','cloudd','--property=MainPID','--value'])}
+backup=Path('/var/lib/cloud-workbench/operator-backups/repository-20260917T2013')
+repo=Path('/var/lib/cloud-workbench/operator-repositories/booking-20260917T2013')
+registry_path=Path('/var/lib/cloud-workbench/environments/repository-20260917T2013.db')
+shared_gid=grp.getgrnam('cloud-workbench').gr_gid
+
+def pending():
+    with sqlite3.connect(database) as db:
+        return db.execute("SELECT id,state FROM attempts WHERE state NOT IN ('completed','failed','cancelled','interrupted','paused')").fetchall()
+
+def atomic(path,data,mode,gid):
+    temporary=path.with_name(path.name+'.repository-stage')
+    with temporary.open('wb') as out:
+        os.chmod(temporary,mode);os.chown(temporary,0,gid);out.write(data);out.flush();os.fsync(out.fileno())
+    os.replace(temporary,path)
+
+stopped=False
+try:
+    assert os.geteuid()==0 and socket.gethostname()=='omarchy'
+    assert worker['runtime']['image']=='sha256:408eb6e2b5c4cb58747fbb1fbac31031545135005079abf878012c33a6632331'
+    assert all(sha(source/name)==expected['files'][name] for name in files)
+    assert not pending(),'Existing work must finish before deployment'
+    untouched=['adapters.py','entrypoint.py','runtime.py','egress.py','credential_state.py']
+    receipt['untouched_source_before']={name:sha(target/'src/cloudworkbench'/name) for name in untouched if (target/'src/cloudworkbench'/name).exists()}
+    receipt['stage']='registry_and_repository'
+    assert not repo.exists() and not registry_path.exists() and not backup.exists()
+    repo.mkdir(parents=True,mode=0o755)
+    git_env={'PATH':'/usr/bin:/bin','HOME':'/nonexistent','GIT_CONFIG_NOSYSTEM':'1','GIT_CONFIG_GLOBAL':'/dev/null','GIT_TERMINAL_PROMPT':'0'}
+    run(['git','init','--initial-branch','main',str(repo)],env=git_env)
+    (repo/'booking.py').write_text('def valid_date(value):\n    return True\n')
+    (repo/'README.md').write_text('# Booking validator\n\nImplement strict calendar-date validation in booking.py.\n')
+    run(['git','-C',str(repo),'add','booking.py','README.md'],env=git_env)
+    run(['git','-C',str(repo),'-c','user.name=Cloud Qualification','-c','user.email=qualification@localhost','commit','-m','Known failing booking baseline'],env=git_env)
+    commit=run(['git','-C',str(repo),'rev-parse','HEAD'],env=git_env)
+    for path in [repo,*repo.rglob('*')]:
+        if path.is_dir():path.chmod(0o755)
+        else:path.chmod(0o644)
+        os.chown(path,0,0)
+    spec=importlib.util.spec_from_file_location('frozen_environments',source/'src/cloudworkbench/environments.py')
+    module=importlib.util.module_from_spec(spec);sys.modules[spec.name]=module;spec.loader.exec_module(module)
+    newproject=copy.deepcopy(worker['projects']['sample-web'])
+    newproject.pop('template',None);newproject.pop('fixture_operation',None)
+    definition={'repository_id':'qualification-booking','commit':commit,'destination':'.'}
+    newproject.update(allowed_agents=['claude'],environment_versions=['repo-v1'],repository=definition)
+    for cfg in config.values():
+        assert 'sample-repo' not in cfg['projects']
+        cfg['projects']['sample-repo']=copy.deepcopy(newproject)
+        cfg['environment_registry']=str(registry_path)
+        cfg['environment_network_profile']='claude-only'
+        cfg['environment_secret_refs']=['claude-subscription']
+    worker['repositories']={**worker.get('repositories',{}),'qualification-booking':{'path':str(repo),'allowed_commits':[commit]}}
+    registry_path.parent.mkdir(parents=True,exist_ok=True,mode=0o750)
+    os.chown(registry_path.parent,0,shared_gid);registry_path.parent.chmod(0o750)
+    registry=module.EnvironmentRegistry(registry_path)
+    qualified={}
+    for project_id,version in [('sample-web','demo-v1'),('sample-document','document-v1'),('sample-repo','repo-v1')]:
+        manifest=module.legacy_manifest(project_id,version,worker['projects'][project_id],worker['runtime'],
+            architecture='amd64',cli_versions={'claude':'2.1.274'},
+            readiness_probes=[{'id':'runtime-python','argv':['python3','-c','from pathlib import Path; import json,datetime; assert Path("/opt/cloudworkbench/entrypoint.py").is_file()']}])
+        manifest['network_profile']='claude-only';manifest['secret_refs']=['claude-subscription']
+        if project_id=='sample-repo':manifest.update(repositories=[definition],legacy_template_id=None)
+        registry.register(manifest);record=registry.qualify(project_id,version,module.docker_qualifier)
+        registry.activate(project_id,version,expected_active=None);qualified[project_id]=record
+    os.chown(registry_path,0,shared_gid);registry_path.chmod(0o640)
+    receipt['environments']=qualified
+    receipt['repository']={'id':'qualification-booking','path':str(repo),'commit':commit,'initial_files':{p.name:sha(p) for p in [repo/'booking.py',repo/'README.md']}}
+    receipt['stage']='idle_and_backup'
+    assert not pending(),'New work arrived; deployment aborted before service stop'
+    backup.mkdir(parents=True,mode=0o700)
+    for name,data in config_bytes.items():(backup/(name+'.json')).write_bytes(data)
+    existing=[]
+    for name in files:
+        path=target/name
+        if path.exists():
+            dest=backup/name;dest.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(path,dest);existing.append(name)
+    receipt['backup_path']=str(backup);receipt['prior_host_files']=existing
+    run(['systemctl','stop','cloud-workbench-api'])
+    if pending():
+        run(['systemctl','start','cloud-workbench-api']);raise RuntimeError('Work appeared before admission stopped')
+    run(['systemctl','stop','cloud-workbench-worker']);stopped=True
+    assert not pending()
+    receipt['stage']='publish'
+    for name in files:atomic(target/name,(source/name).read_bytes(),0o644,0)
+    for name,path in configs.items():atomic(path,(json.dumps(config[name],indent=2)+'\n').encode(),0o640,shared_gid)
+    with sqlite3.connect(database) as db:
+        db.execute('BEGIN IMMEDIATE')
+        row=db.execute('SELECT id,projects,scopes FROM clients WHERE name=? AND revoked_at IS NULL',('Thomas cloud2',)).fetchone()
+        assert row is not None
+        old_projects=json.loads(row[1]);new_projects=list(dict.fromkeys(old_projects+['sample-repo']))
+        db.execute('UPDATE clients SET projects=? WHERE id=?',(json.dumps(new_projects),row[0]))
+        receipt['client_grant']={'name':'Thomas cloud2','projects_before':old_projects,'projects_after':new_projects,'scopes_unchanged':True}
+    receipt['stage']='restart_and_readiness'
+    run(['systemctl','start',*services]);stopped=False
+    for _ in range(30):
+        time.sleep(.3)
+        if all(run(['systemctl','is-active',name])=='active' for name in services):break
+    assert all(run(['systemctl','is-active',name])=='active' for name in services)
+    receipt['config_sha256_after']={name:sha(path) for name,path in configs.items()}
+    receipt['deployed_source_sha256']={name:sha(target/name) for name in files}
+    assert receipt['source_sha256']==receipt['deployed_source_sha256']
+    receipt['untouched_source_after']={name:sha(target/'src/cloudworkbench'/name) for name in receipt['untouched_source_before']}
+    assert receipt['untouched_source_before']==receipt['untouched_source_after']
+    receipt['legacy_pid_after']=run(['systemctl','show','cloudd','--property=MainPID','--value'])
+    assert receipt['legacy_pid_before']==receipt['legacy_pid_after']
+    assert json.loads(configs['worker'].read_text())['runtime']['image']==receipt['image_digest']
+    receipt['passed']=True;receipt['stage']='complete'
+except Exception as exc:
+    receipt['error_type']=type(exc).__name__
+    if stopped:
+        receipt['recovery']='Services stopped; inspect root-owned backups before continuing'
+finally:
+    receipt['finished_at']=now();(stage/'deployment-receipt.json').write_text(json.dumps(receipt,indent=2)+'\n')
+    print(json.dumps(receipt,indent=2),flush=True)
+raise SystemExit(0 if receipt['passed'] else 1)

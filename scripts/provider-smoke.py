@@ -1,0 +1,78 @@
+#!/usr/bin/env python3
+"""Real official Claude CLI task through the deployed API and protected verifier."""
+import hashlib
+import json
+from pathlib import Path
+import runpy
+import time
+
+helper = runpy.run_path(str(Path(__file__).with_name('http-smoke.py')))
+call = helper['call']
+receipt = {'provider_called': True, 'synthetic_adapter': False, 'passed': False, 'checks': {}}
+
+
+def events(sid):
+    body, _ = call('GET', f'/v1/sessions/{sid}/events?follow=false', raw=True)
+    return [json.loads(line[5:].strip()) for line in body.decode().splitlines() if line.startswith('data:')]
+
+
+def wait(sid, turns):
+    deadline = time.monotonic() + 600
+    observed_live = set()
+    while time.monotonic() < deadline:
+        state = call('GET', '/v1/sessions/' + sid)
+        history = events(sid)
+        if state['state'] not in {'completed', 'failed', 'cancelled', 'interrupted'}:
+            observed_live.update(event['type'] for event in history)
+        if len(state['turns']) >= turns and state['state'] in {'completed', 'failed', 'cancelled', 'interrupted'}:
+            return state, history, sorted(observed_live)
+        time.sleep(.4)
+    raise RuntimeError('Provider smoke exceeded its bounded wait')
+
+
+def verify_artifacts(sid, attempt):
+    records = call('GET', f'/v1/sessions/{sid}/artifacts')['artifacts']
+    verified = []
+    for item in records:
+        if item['attempt_id'] != attempt:
+            continue
+        content, _ = call('GET', '/v1/artifacts/' + item['id'] + '/content', raw=True)
+        assert hashlib.sha256(content).hexdigest() == item['sha256']
+        assert len(content) == item['bytes']
+        verified.append({key:item[key] for key in ['id', 'path', 'sha256', 'bytes']})
+    assert any(item['path'] == 'booking.py' for item in verified)
+    return verified
+
+
+try:
+    request = {
+        'project_id': 'sample-web', 'agent': 'claude', 'environment_version': 'demo-v1',
+        'goal': 'Inspect booking.py. Implement valid_date(value) so only valid calendar dates in YYYY-MM-DD strings pass, while malformed dates, nonexistent dates and nonstrings fail. Add a small unittest test file, run it, and write report.md summarizing the changes and test command. Work only inside the supplied workspace. No dependencies need installation.',
+        'acceptance': [{'id':'booking-validity', 'description':'Valid dates pass; malformed and nonexistent dates fail.', 'mandatory':True}],
+    }
+    created = call('POST', '/v1/sessions', request)
+    sid = receipt['session_id'] = created['session_id']
+    first, history, live = wait(sid, 1)
+    receipt['first'] = {'state':first['state'], 'outcome':first.get('outcome'), 'attempt_id':created['attempt_id'], 'live_event_types':live}
+    assert first['state'] == 'completed' and first.get('outcome') == 'verified', 'First provider attempt did not pass protected verification'
+    receipt['first_artifacts'] = verify_artifacts(sid, created['attempt_id'])
+    receipt['checks']['real_task_and_protected_verifier'] = True
+    assert 'adapter.provenance' in live and 'tool.started' in live, 'Provider events were not observed while executing'
+    receipt['checks']['live_provider_progress'] = True
+    follow = call('POST', f'/v1/sessions/{sid}/messages', {'message':'Add README.md describing valid_date and the exact command to run the tests. Preserve the existing correct behavior and report.md. Run the tests again.'})
+    result, history, live = wait(sid, 2)
+    receipt['followup'] = {'state':result['state'], 'outcome':result.get('outcome'), 'attempt_id':follow['attempt_id'], 'live_event_types':live}
+    assert result['state'] == 'completed' and result.get('outcome') == 'verified', 'Follow-up did not pass protected verification'
+    receipt['followup_artifacts'] = verify_artifacts(sid, follow['attempt_id'])
+    assert any(item['path'] == 'README.md' for item in receipt['followup_artifacts'])
+    assert follow['attempt_id'] != created['attempt_id']
+    receipt['checks']['reconstructed_followup_and_delivery'] = True
+    receipt['provenance'] = [event['payload'] for event in history if event['type'] == 'adapter.provenance']
+    receipt['usage'] = [event['payload'].get('usage') for event in history if event['type'] == 'adapter.result']
+    assert len(receipt['provenance']) == 2 and all(receipt['usage'])
+    receipt['checks']['provenance_and_usage_retained'] = True
+    receipt['passed'] = True
+except Exception as exc:
+    receipt['error'] = type(exc).__name__ + ': ' + str(exc)[:300]
+print(json.dumps(receipt, indent=2), flush=True)
+raise SystemExit(0 if receipt['passed'] else 1)

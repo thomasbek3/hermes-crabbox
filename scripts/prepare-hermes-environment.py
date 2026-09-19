@@ -1,0 +1,181 @@
+#!/usr/bin/env python3
+"""Qualify one offline Hermes environment in a fresh copy; never activate it."""
+from __future__ import annotations
+
+import argparse
+import copy
+from datetime import datetime, timezone
+import hashlib
+import json
+import os
+from pathlib import Path
+import socket
+import sqlite3
+import stat
+import subprocess
+import sys
+from unittest.mock import patch
+
+SOURCE = Path('/var/lib/cloud-workbench/qualifications/hermes-api-source-7cbaeba1c999/src')
+REGISTRY = Path('/var/lib/cloud-workbench/environments/auth-retention-20260917r2.db')
+PARENT = Path('/var/lib/cloud-workbench/qualifications')
+IMAGE = 'sha256:5a03c9d2d1fc20683029c47683a3b0470ad2d7ce79eeb43ced1bdfba10770693'
+ENV_SOURCE_SHA = 'ecceb986a515083e8330b1cef15ec999ba09221094238c4f242ea21e06e4b70e'
+PROJECT, VERSION = 'sample-web', 'hermes-grok-v1'
+UNITS = ('cloud-workbench-api', 'cloud-workbench-worker', 'cloudd')
+RUN = subprocess.run
+
+
+def sha(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def command(args, timeout=15):
+    result = RUN(args, capture_output=True, text=True, timeout=timeout, check=True)
+    if len(result.stdout.encode()) > 1024*1024:
+        raise ValueError('bounded_command_output')
+    return result.stdout.strip()
+
+
+def services():
+    result = {}
+    for name in UNITS:
+        values = dict(line.split('=',1) for line in command(
+            ['systemctl','show',name,'--property=ActiveState,MainPID']).splitlines())
+        if values != {'MainPID':values.get('MainPID'),'ActiveState':'active'} or not values['MainPID'].isdigit() or int(values['MainPID']) <= 0:
+            raise ValueError('service_not_active')
+        result[name] = values
+    return result
+
+
+def rows(path):
+    with sqlite3.connect(path.resolve().as_uri()+'?mode=ro',uri=True) as db:
+        return {table:db.execute('SELECT * FROM '+table+' ORDER BY rowid').fetchall()
+                for table in ('environments','qualification_attempts','active_environments')}
+
+
+def owned_source():
+    for path in (SOURCE.parent,SOURCE,SOURCE/'cloudworkbench',SOURCE/'cloudworkbench/__init__.py',SOURCE/'cloudworkbench/environments.py'):
+        info=path.lstat()
+        if path != path.resolve() or info.st_uid != 0 or info.st_mode & 0o022:
+            raise ValueError('untrusted_frozen_source')
+    if sha(SOURCE/'cloudworkbench/environments.py') != ENV_SOURCE_SHA:
+        raise ValueError('frozen_source_digest_mismatch')
+
+
+def write(path, value):
+    with open(path,'x',encoding='utf-8') as stream:
+        os.fchmod(stream.fileno(),0o600)
+        stream.write(json.dumps(value,sort_keys=True,indent=2)+'\n')
+        stream.flush();os.fsync(stream.fileno())
+
+
+def main(argv=None):
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--output',type=Path,required=True)
+    args=parser.parse_args(argv)
+    if socket.gethostname()!='omarchy' or os.geteuid()!=0:
+        raise ValueError('requires_root_on_omarchy')
+    output=args.output
+    if output.parent!=PARENT or not output.name.startswith('hermes-environment-') or output!=output.resolve() or output.exists():
+        raise ValueError('fresh_qualification_directory_required')
+    owned_source()
+    configs={name:Path('/etc/cloud-workbench')/(name+'.json') for name in ('api','worker')}
+    config_hashes={name:sha(path) for name,path in configs.items()}
+    worker=json.loads(configs['worker'].read_bytes())
+    if Path(worker['environment_registry'])!=REGISTRY:
+        raise ValueError('live_registry_identity_changed')
+    original_hash=sha(REGISTRY);original_rows=rows(REGISTRY);before=services()
+    image=json.loads(command(['/usr/bin/docker','image','inspect',IMAGE]))[0]
+    if image['Id']!=IMAGE or image['Os']!='linux' or image['Architecture']!='amd64':
+        raise ValueError('image_identity_mismatch')
+    sys.path.insert(0,str(SOURCE))
+    import cloudworkbench.environments as environments
+    if Path(environments.__file__).resolve()!=SOURCE/'cloudworkbench/environments.py':
+        raise ValueError('source_import_mismatch')
+    output.mkdir(mode=0o700)
+    receipt={'schema_version':1,'host':socket.gethostname(),'started_at':datetime.now(timezone.utc).isoformat(),
+        'passed':False,'phase':'registry_copy','activation':False,'provider_calls':0,
+        'cli_reported_version':'v0.21.3','package_metadata_version':'0.21.3',
+        'driver_sha256':sha(__file__),'library_sha256':ENV_SOURCE_SHA,'source_registry':str(REGISTRY),
+        'source_registry_sha256_before':original_hash,'services_before':before,
+        'config_sha256_before':config_hashes,'output':str(output),'probe_containers':[]}
+    destination=output/'environments.db'
+    try:
+        with sqlite3.connect(REGISTRY.as_uri()+'?mode=ro',uri=True) as source, sqlite3.connect(destination) as target:
+            source.backup(target)
+        os.chmod(destination,0o600)
+        if rows(destination)!=original_rows:raise ValueError('registry_copy_mismatch')
+        project=copy.deepcopy(worker['projects'][PROJECT])
+        project['environment_versions']=[*project['environment_versions'],VERSION]
+        runtime={**worker['runtime'],'image':IMAGE}
+        if {k:runtime[k] for k in ('cpus','memory_mib','pids','workspace_mib')} != dict(cpus=1,memory_mib=1024,pids=128,workspace_mib=256):
+            raise ValueError('runtime_resource_identity_changed')
+        readiness=('from pathlib import Path; import importlib.metadata; '
+            'assert importlib.metadata.version("hermes-agent")=="0.21.3"; '
+            'assert Path("/opt/hermes/trusted-plugins/pstack/plugin.yaml").is_file(); '
+            'assert Path("/opt/hermes/trusted-plugins/pstack/skills/tdd/SKILL.md").is_file(); '
+            'assert Path("/opt/cloudworkbench/entrypoint.py").is_file(); '
+            'assert Path("/opt/cloudworkbench/adapters.py").is_file()')
+        manifest=environments.legacy_manifest(PROJECT,VERSION,project,runtime,architecture='amd64',
+            cli_versions={'hermes':'v0.21.3'},readiness_probes=[{'id':'hermes-pstack-entrypoint',
+            'argv':['/opt/hermes/venv/bin/python','-I','-B','-c',readiness],'timeout_seconds':30}])
+        manifest.update(network_profile='hermes-coordinator-bridge-tools-none',secret_refs=['grok-dedicated-oauth'])
+        registry=environments.EnvironmentRegistry(destination)
+        old=registry.get(PROJECT,'demo-v2')['manifest']
+        if manifest['checks']!=old['checks'] or manifest['legacy_template_id']!=old['legacy_template_id']:
+            raise ValueError('protected_checks_or_template_drift')
+        record=registry.register(manifest)
+        write(output/'manifest.json',record['manifest'])
+        receipt['phase']='offline_qualification'
+        def traced(args,**kwargs):
+            if args[:2]==['/usr/bin/docker','run']:
+                name=args[args.index('--name')+1]
+                receipt['probe_containers'].append({'name':name,'network':'none','host_mounts':0,'credentials':False})
+            if args[:3]==['/usr/bin/docker','rm','--force']:
+                name=args[-1]
+                data=json.loads(command(['/usr/bin/docker','inspect',name]))[0]
+                if data['Name']!='/'+name or data['Image']!=IMAGE or data['Config']['Labels'].get('io.cloudworkbench.environment-probe')!='true':
+                    raise ValueError('probe_identity_mismatch')
+                isolation=(data['HostConfig']['NetworkMode']=='none' and all(m['Type']=='tmpfs' for m in data['Mounts']))
+                item=next(p for p in receipt['probe_containers'] if p['name']==name)
+                item.update(runtime_id=data['Id'],exit_code=data['State']['ExitCode'],exited=not data['State']['Running'],isolation_verified=isolation)
+            result=RUN(args,**kwargs)
+            if args[:3]==['/usr/bin/docker','rm','--force'] and result.returncode==0:
+                remaining=command(['/usr/bin/docker','container','ls','--all','--no-trunc','--filter','id='+item['runtime_id'],'--format','{{.ID}}'])
+                item['removed']=not remaining
+                if remaining:raise ValueError('probe_cleanup_unconfirmed')
+                if not item['isolation_verified']:raise ValueError('probe_isolation_mismatch')
+            return result
+        with patch.object(environments.subprocess,'run',traced):
+            qualified=registry.qualify(PROJECT,VERSION,lambda record:environments.docker_qualifier(record,docker='/usr/bin/docker'))
+        record=registry.get(PROJECT,VERSION,include_diagnostic=True)
+        receipt['record']=record
+        write(output/'record.json',record)
+        after_rows=rows(destination)
+        if (after_rows['environments'][:-1]!=original_rows['environments']
+                or after_rows['qualification_attempts'][:-1]!=original_rows['qualification_attempts']
+                or after_rows['active_environments']!=original_rows['active_environments']):
+            raise ValueError('old_registry_rows_changed')
+        if len(receipt['probe_containers'])!=2 or not all(p.get('removed') and p.get('isolation_verified') and p.get('exit_code')==0 for p in receipt['probe_containers']):
+            raise ValueError('incomplete_probe_evidence')
+        receipt.update(passed=True,phase='qualified_copy',old_rows_preserved=True,active_versions_unchanged=True,
+                       registry_path=str(destination),registry_sha256=sha(destination),manifest_sha256=record['manifest_sha256'])
+    except Exception as exc:
+        receipt.update(error_type=type(exc).__name__,error_code=getattr(exc,'code','qualification_failed'))
+    finally:
+        receipt['source_registry_sha256_after']=sha(REGISTRY)
+        receipt['source_rows_unchanged']=rows(REGISTRY)==original_rows
+        receipt['config_sha256_after']={name:sha(path) for name,path in configs.items()}
+        receipt['services_after']=services()
+        receipt['unchanged']=(receipt['source_registry_sha256_after']==original_hash and receipt['source_rows_unchanged']
+            and receipt['config_sha256_after']==config_hashes and receipt['services_after']==before)
+        receipt['passed']=receipt['passed'] and receipt['unchanged']
+        receipt['finished_at']=datetime.now(timezone.utc).isoformat()
+        write(output/'receipt.json',receipt)
+        print(json.dumps(receipt,sort_keys=True))
+    return 0 if receipt['passed'] else 1
+
+
+if __name__=='__main__':
+    raise SystemExit(main())

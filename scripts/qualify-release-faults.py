@@ -1,0 +1,125 @@
+#!/usr/bin/env python3
+"""One 64 MiB synthetic qualifier. Never reads the configured real token."""
+import datetime,hashlib,json,os,sqlite3,subprocess,sys,time,uuid
+from pathlib import Path
+from cloudworkbench.runtime import Runtime
+from cloudworkbench.runner import Runner
+from cloudworkbench.store import Store
+
+
+def save(path,value):path.write_text(json.dumps(value,indent=2)+'\n')
+def owned(runtime):
+ filters=['--filter','label=io.cloudworkbench.managed=true','--filter','label=io.cloudworkbench.owner='+runtime.owner]
+ return {'containers':runtime._run(['container','ls','--all',*filters,'--format','{{.ID}}']).splitlines(),'networks':runtime._run(['network','ls',*filters,'--format','{{.ID}}']).splitlines()}
+def wait(runtime,rid,seconds=35):
+ end=time.monotonic()+seconds
+ while time.monotonic()<end:
+  state=runtime.status(rid,1)
+  if state['state']!='running':return state
+  time.sleep(.1)
+ runtime.stop(rid,expected_generation=1);raise RuntimeError('synthetic probe deadline')
+def cleanup(runtime,rid):
+ runtime.stop(rid,expected_generation=1);runtime.cleanup(rid,expected_generation=1)
+def run(runtime,session,program,tag,mounts=None,seconds=35):
+ rid=None
+ try:
+  rid=runtime.launch(tag+'-'+uuid.uuid4().hex[:8],session,['python3','-c',program],{},mounts,generation=1)
+  state=wait(runtime,rid,seconds);logs=runtime.logs(rid,4096)
+  return {'status':state,'logs':logs.decode(errors='replace'),'bytes_returned':len(logs),'runtime_id':rid}
+ finally:
+  if rid:cleanup(runtime,rid)
+def mounts(runtime,session):return [{'source':str(runtime.native_state(session)),'target':'/state','readonly':False}]
+
+def auth_case(root,cfg,kind):
+ folder=root/kind;folder.mkdir(mode=0o2770)
+ token=folder/'synthetic-token';canary='SYNTHETIC-'+uuid.uuid4().hex
+ if kind!='missing_auth':token.write_text(canary);token.chmod(0o640)
+ configuration={'state_root':str(folder),'database':str(folder/'state.db'),'artifact_root':str(folder/'artifacts'),'claude_token':str(token),'claude_enabled':True,'test_mode':False,'agents':['claude'],'capacity':2,'execution_seconds':20,'runtime':{**cfg,'approved_mount_roots':[str(folder)],'approved_writable_mount_roots':[str(root)]},'projects':{'synthetic':{'allowed_agents':['claude'],'models':{'claude':[]},'environment_versions':['synthetic-v1'],'checks':[]}}}
+ store=Store(Path(configuration['database']),shared_group=True);runner=Runner(store,configuration);runner.capacity=lambda:0
+ principal=store.add_client('synthetic-qualifier',uuid.uuid4().hex+uuid.uuid4().hex,['submit','observe','retrieve','cancel'],['synthetic'])
+ request={'project_id':'synthetic','goal':'Synthetic auth fault, no network or provider','agent':'claude','environment_version':'synthetic-v1'}
+ first=store.create_session(principal,request,str(uuid.uuid4()));second=store.create_session(principal,request,str(uuid.uuid4()))
+ if kind=='fake_provider_auth_rejection':
+  original=runner.runtime.launch
+  def launch(aid,sid,argv,env,mounts=None,**kwargs):
+   if not aid.endswith('-verify'):
+    code='import json;from pathlib import Path;t=json.loads(Path("/run/task/task.json").read_text());p=Path("/state/events");p.mkdir(exist_ok=True);e={"type":"adapter.result","payload":{"is_error":True,"subtype":"authentication_error","summary":"Synthetic authentication rejected","provenance":"worker_reported"}};(p/t["event_spool"]).write_text(json.dumps(e)+"\\n");print(json.dumps(e))'
+    argv=['python3','-c',code]
+   return original(aid,sid,argv,env,mounts,**kwargs)
+  runner.runtime.launch=launch
+ runner.tick();a=store.get_attempt(first['attempt_id']);b=store.get_attempt(second['attempt_id'])
+ serialized=a['state']=='running' and b['state']=='queued'
+ max_active=len(store.active_attempts())
+ if kind=='missing_auth':
+  for _ in range(3):runner.tick()
+ else:
+  end=time.monotonic()+40
+  while time.monotonic()<end:
+   runner.tick();max_active=max(max_active,len(store.active_attempts()))
+   a=store.get_attempt(first['attempt_id']);b=store.get_attempt(second['attempt_id'])
+   if a['state'] in ('failed','completed') and b['state'] in ('failed','completed'):break
+   time.sleep(.1)
+ events=store.events(principal,first['session_id']);a=store.get_attempt(first['attempt_id']);b=store.get_attempt(second['attempt_id'])
+ combined=json.dumps(events)
+ for p in (folder/'logs').glob('*.log'):combined+=p.read_text()
+ result={'case':kind,'first_state':a['state'],'first_reason':a['reason'],'second_state':b['state'],'second_reason':b['reason'],'initial_same_account_serialization':serialized,'max_live_reservations':max_active,'live_reservations':len(store.active_attempts()),'blocked_event_count':sum(x['type']=='attempt.blocked' for x in events),'synthetic_token_absent_logs_events':canary not in combined,'remaining_objects':owned(runner.runtime)}
+ if kind=='missing_auth':
+  result['passed']=a['state']==b['state']=='queued' and result['blocked_event_count']==1 and max_active==0
+  result['observable']='Stable queued with blocked reason; no compute reservation. Queued record is cancellable, not failed.'
+  store.cancel(principal,first['attempt_id'],str(uuid.uuid4()));store.cancel(principal,second['attempt_id'],str(uuid.uuid4()))
+ else:
+  result['passed']=a['state']==b['state']=='failed' and serialized and max_active==1 and result['live_reservations']==0
+  result['quarantine_observed']=False
+  result['classification_gap']='Generic failure; no dedicated auth category/quarantine. A second queued request executes and fails.'
+ result['passed']=result['passed'] and result['synthetic_token_absent_logs_events'] and not any(result['remaining_objects'].values())
+ return result
+
+def main():
+ os.umask(0o007)
+ source=Path('/etc/cloud-workbench/worker.json');operator=json.loads(source.read_text())
+ base={**operator['runtime'],'workspace_mib':64,'network_enabled':False,'owner':'fault-'+uuid.uuid4().hex[:10]}
+ volume=Runtime(base);volume_id='faultqual-'+uuid.uuid4().hex;root=volume.make_workspace(volume_id);sessions=root/'sessions';sessions.mkdir(mode=0o2770)
+ cfg={**base,'root':str(sessions),'test_path_workspace':True,'memory_mib':128,'pids':16,'cpus':.5,'approved_mount_roots':[str(root)],'approved_writable_mount_roots':[str(root)]}
+ runtime=Runtime(cfg)
+ report={'host':os.uname().nodename,'timestamp':datetime.datetime.now(datetime.timezone.utc).isoformat(),'driver_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),'image':runtime.image,'scope':'Synthetic fake-provider/no-network faults, one hard64MiB volume; logical sessions share that test quota. No real credentials read. Not a replacement for per-session quota qualification.','volume_id':volume_id,'volume_retained':str(root.parent),'modules':{n:hashlib.sha256(Path(sys.modules['cloudworkbench.'+n].__file__).read_bytes()).hexdigest() for n in ('runtime','runner','store','adapters')},'cases':[],'passed':False}
+ sibling=None
+ try:
+  for kind in ('missing_auth','invalid_auth_format','fake_provider_auth_rejection'):report['cases'].append(auth_case(root,cfg,kind))
+  a,b='native-a-'+uuid.uuid4().hex[:8],'native-b-'+uuid.uuid4().hex[:8]
+  for sid in (a,b):runtime.make_workspace(sid)
+  program='import time;from pathlib import Path;Path("/state/only-a").write_text("synthetic-a");\nwhile True:\n Path("/workspace/heartbeat").write_text(str(time.monotonic()));time.sleep(.1)'
+  sibling=runtime.launch('sibling-'+uuid.uuid4().hex[:8],a,['python3','-c',program],{},mounts(runtime,a),generation=1)
+  deadline=time.monotonic()+10
+  while not (runtime.native_state(a)/'only-a').exists() and time.monotonic()<deadline:time.sleep(.1)
+  p='import json;from pathlib import Path;Path("/state/only-b").write_text("synthetic-b");print(json.dumps({"checks":{"a_native_absent":not Path("/state/only-a").exists(),"host_other_native_absent":not Path('+repr(str(runtime.native_state(a)/'only-a'))+').exists(),"host_controller_absent":not Path('+repr(str(root/'invalid_auth_format'))+').exists(),"docker_socket_absent":not Path("/var/run/docker.sock").exists()}}))'
+  isolated=run(runtime,b,p,'native',mounts(runtime,b));checks=json.loads(isolated.pop('logs'))['checks'];checks['b_native_not_in_a']=not (runtime.native_state(a)/'only-b').exists();isolated.update(case='two_session_native_isolation',checks=checks,passed=all(checks.values()));report['cases'].append(isolated)
+  cases=[('memory','x=[]\nwhile True:x.append(bytearray(8*1024*1024))'),('pid','import errno,json,os,time\np=[];blocked=False\ntry:\n for _ in range(64):\n  pid=os.fork()\n  if pid==0:time.sleep(1);os._exit(0)\n  p.append(pid)\nexcept OSError as e:blocked=e.errno==errno.EAGAIN\nfinally:\n for pid in p:os.waitpid(pid,0)\nprint(json.dumps({"pid_limit_observed":blocked,"children":len(p)}))'),('logs','import os\nfor _ in range(10240):os.write(1,b"x"*4095+b"\\n")\nprint("\\nSYNTHETIC_LOG_END",flush=True)')]
+  for name,program in cases:
+   before=float((runtime.make_workspace(a)/'heartbeat').read_text());item=run(runtime,b,program,name);time.sleep(.25);after=float((runtime.make_workspace(a)/'heartbeat').read_text());item.update(case=name,sibling_heartbeat_advanced=after>before,sibling_running=runtime.status(sibling,1)['state']=='running')
+   if name=='memory':item['passed']=item['status'].get('oom') is True and item['status']['exit_code']==137;item.pop('logs')
+   elif name=='pid':item['probe']=json.loads(item.pop('logs'));item['passed']=item['probe']['pid_limit_observed'] and item['probe']['children']<16
+   else:item['passed']=item['bytes_returned']<=4096 and 'SYNTHETIC_LOG_END' in item.pop('logs');item['synthetic_bytes_emitted']=40*1024**2;item['retention_config']={'driver':'local','max-size':'10m','max-file':'3'};item['disk_rotation_measured']=False
+   item['passed']=item['passed'] and item['sibling_heartbeat_advanced'] and item['sibling_running'];report['cases'].append(item)
+  cleanup(runtime,sibling);sibling=None
+  # Dedicated isolated gateway networks: only a tiny listener and one denial probe.
+  network=Runtime({**cfg,'network_enabled':True,'allowed_domains':['github.com']})
+  listener=network.launch('listener-'+uuid.uuid4().hex[:8],a,['python3','-c','import socket,time;from pathlib import Path;s=socket.socket();s.bind(("0.0.0.0",8765));s.listen();Path("/workspace/listener-ready").write_text("ready");time.sleep(30)'],{},generation=1)
+  try:
+   deadline=time.monotonic()+10
+   while not (network.make_workspace(a)/'listener-ready').exists() and time.monotonic()<deadline:time.sleep(.1)
+   assert (network.make_workspace(a)/'listener-ready').exists()
+   network._run(['exec',listener,'python3','-c','import socket;s=socket.create_connection(("127.0.0.1",8765),2);s.close()'])
+   inspected=json.loads(network._run(['inspect',listener]))[0];ip=next(iter(inspected['NetworkSettings']['Networks'].values()))['IPAddress']
+   program='import socket,json\ntry:\n s=socket.create_connection(('+repr(ip)+',8765),2);s.close();denied=False\nexcept OSError:denied=True\nprint(json.dumps({"other_job_denied":denied}))'
+   item=run(network,b,program,'peer-denial');item['probe']=json.loads(item.pop('logs'));item.update(case='isolated_gateway_other_job_denial',passed=item['probe']['other_job_denied']);report['cases'].append(item)
+  finally:cleanup(network,listener)
+  report['remaining_objects']=owned(runtime);report['passed']=all(c['passed'] for c in report['cases']) and not any(report['remaining_objects'].values())
+ except Exception as exc:report['error']=type(exc).__name__+': '+str(exc)[:300]
+ finally:
+  for item in runtime.list_owned():
+   runtime.stop(item['runtime_id'],expected_generation=1);runtime.cleanup(item['runtime_id'],expected_generation=1)
+  report['remaining_objects_after_cleanup']=owned(runtime)
+  report['passed']=report['passed'] and not any(report['remaining_objects_after_cleanup'].values())
+  save(root/'fault-qualification-receipt.json',report)
+ print(json.dumps(report,indent=2));return 0 if report['passed'] else 1
+if __name__=='__main__':raise SystemExit(main())

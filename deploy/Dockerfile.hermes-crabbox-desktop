@@ -1,0 +1,24 @@
+ARG BASE_IMAGE=cloud-workbench-hermes-crabbox:20260918
+FROM ${BASE_IMAGE}
+USER root
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    tigervnc-standalone-server tigervnc-tools xfce4-session xfwm4 xfce4-panel \
+    xfdesktop4 xfce4-terminal xfconf xfce4-settings xauth dbus-x11 \
+    x11-xserver-utils xterm scrot ffmpeg xdotool wmctrl xclip xsel \
+    fonts-dejavu-core fonts-liberation iproute2 openssl arc-theme procps \
+    netcat-openbsd novnc websockify \
+    && rm -rf /var/lib/apt/lists/* \
+    && printf '%s\n' '#!/bin/sh' \
+        'exec /opt/playwright/chromium-1243/chrome-linux64/chrome --no-sandbox --disable-dev-shm-usage "$@"' \
+        > /usr/local/bin/chromium \
+    && chown root:root /usr/local/bin/chromium \
+    && chmod 0755 /usr/local/bin/chromium
+COPY BROWSER.crabbox-desktop.md /opt/cloud-tools/BROWSER.md
+COPY crabbox_guest.py /opt/cloudworkbench/crabbox_guest.py
+RUN chown root:root /opt/cloud-tools/BROWSER.md /opt/cloudworkbench/crabbox_guest.py \
+    && chmod 0644 /opt/cloud-tools/BROWSER.md /opt/cloudworkbench/crabbox_guest.py
+WORKDIR /workspace
+COPY crabbox-init.sh /usr/local/bin/crabbox-init
+RUN chmod 0755 /usr/local/bin/crabbox-init
+ENTRYPOINT ["/usr/local/bin/crabbox-init"]
+CMD ["/usr/sbin/sshd", "-D"]

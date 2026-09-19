@@ -1,0 +1,11 @@
+[Unit]
+Description=Maintain dedicated Cloud Workbench Grok OAuth before expiry
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+AccuracySec=15s
+Unit=cloud-workbench-grok-refresh.service
+
+[Install]
+WantedBy=timers.target

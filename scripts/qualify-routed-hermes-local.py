@@ -1,0 +1,172 @@
+#!/usr/bin/env python3
+"""Run the pinned actual Hermes CLI with generated routed config and synthetic localhost inference."""
+import argparse
+import contextlib
+import hashlib
+import io
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def child(source, model):
+    import runpy
+    import importlib.util
+    import socket
+    import threading
+    from dataclasses import replace
+    from cloudworkbench.hermes_adapter import build_routed_launch, HERMES_COMMIT
+    from cloudworkbench.workflow_instructions import StageInstructions, STAGE_BOUNDARY
+    from cloudworkbench.native_responses import NativeProfile, validate_request
+    from cloudworkbench.inference_service import InferenceService, ServiceResponse
+    manifest = json.loads((source.parent / 'source-manifest.json').read_text())
+    assert manifest['hermes_commit'] == HERMES_COMMIT
+    assert not (source / '.env').exists() and not (source / '.op.env').exists()
+    targets = []
+    original_connect, original_connect_ex, original_lookup = socket.socket.connect, socket.socket.connect_ex, socket.getaddrinfo
+    def connect(sock, address):
+        if not isinstance(address, tuple) or address[0] != '127.0.0.1':
+            raise RuntimeError('non_loopback_connection_refused')
+        targets.append(address)
+        return original_connect(sock, address)
+    def connect_ex(sock, address):
+        if not isinstance(address, tuple) or address[0] != '127.0.0.1':
+            raise RuntimeError('non_loopback_connection_refused')
+        targets.append(address)
+        return original_connect_ex(sock, address)
+    def lookup(host, *args, **kwargs):
+        if host != '127.0.0.1': raise RuntimeError('non_loopback_lookup_refused')
+        return original_lookup(host, *args, **kwargs)
+    socket.socket.connect, socket.socket.connect_ex, socket.getaddrinfo = connect, connect_ex, lookup
+    required_sources = {}
+    for module_name in ('hermes_cli.main','run_agent','agent.codex_responses_adapter','agent.codex_runtime'):
+        spec = importlib.util.find_spec(module_name)
+        assert spec and spec.origin
+        path = Path(spec.origin).resolve()
+        assert path.is_relative_to(source), 'required_module_outside_pinned_source'
+        name = 'hermes/' + str(path.relative_to(source))
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        assert manifest['files_sha256'].get(name) == digest
+        required_sources[name] = digest
+    profiles = {'gpt-6-astra': NativeProfile('openai-codex','gpt-6-astra','high'),
+        'gpt-5.6-sol': NativeProfile('openai-codex','gpt-5.6-sol','max'),
+        'grok-4.6': NativeProfile('xai-oauth','grok-4.6','xhigh')}
+    profile = profiles[model]
+    root = Path.cwd()
+    workspace = root / 'workspace'; workspace.mkdir()
+    marker = 'SYNTHETIC_ROUTED_HERMES_TOOL_CONTENT'
+    fixture = workspace / 'fixture.txt'; fixture.write_text(marker + '\n')
+    captured = []
+    errors = []
+    refused_shapes = []
+    capability = hashlib.sha256(b'synthetic-local-only-capability').hexdigest()
+    def execute(request, cancel):
+        try:
+            validate_request(profile, request)
+            captured.append(request)
+            assert len(captured) <= 2
+            if len(captured) == 1:
+                item = {'id':'fc_local', 'type':'function_call', 'status':'completed', 'call_id':'call_local',
+                    'name':'read_file', 'arguments':json.dumps({'path':str(fixture)})}
+            else:
+                assert any(v.get('type') == 'function_call_output' and v.get('call_id') == 'call_local'
+                           and marker in str(v.get('output','')) for v in request['input'])
+                item = {'id':'msg_local', 'type':'message', 'role':'assistant', 'status':'completed',
+                        'content':[{'type':'output_text','text':'SYNTHETIC_ROUTED_HERMES_OK','annotations':[]}]}
+            response = {'id':'resp_local_' + str(len(captured)), 'model':model, 'status':'completed', 'output':[item]}
+            events = [{'type':'response.output_item.done','output_index':0,'item':item},
+                      {'type':'response.completed','response':response}]
+            body = b''.join(b'event: ' + e['type'].encode() + b'\ndata: ' + json.dumps(e).encode() + b'\n\n' for e in events)
+            return ServiceResponse(200, 'text/event-stream', body)
+        except Exception as exc:
+            refused_shapes.append({'keys':sorted(request),'reasoning':request.get('reasoning'),'extra':{k:v for k,v in request.items() if k not in {'model','instructions','input','tools','reasoning'}}})
+            errors.append(type(exc).__name__ + ':' + str(exc)[:500])
+            return ServiceResponse(400, 'application/json', b'{"error":{"message":"fixture_refused"}}')
+    server = InferenceService(('127.0.0.1',0), request_path='/v1/responses',
+        capability_sha256=hashlib.sha256(capability.encode()).hexdigest(), authorize=lambda:True, execute=execute)
+    thread = threading.Thread(target=server.serve_forever, daemon=False)
+    thread.start()
+    text = 'Use read_file for the explicitly supplied fixture and report the result.'
+    stage = StageInstructions('review','code_review','synthetic-reference',hashlib.sha256(text.encode()).hexdigest(),text,STAGE_BOUNDARY)
+    plan = build_routed_launch(profile, stage, task='Read ' + str(fixture) + ' with read_file, then report the returned marker.',
+        input_revision_sha256='a'*64, workspace_readonly=True, port=server.server_address[1], max_turns=3, run_budget_seconds=60)
+    def relocate(text):
+        return text.replace('/run/tool',str(root/'tool')).replace('/run/task',str(root/'task')).replace('/workspace',str(workspace)).replace('/scratch',str(root/'scratch'))
+    env = {k:relocate(v) for k,v in plan.environment}
+    env.update(PYTHONPATH=str(source) + os.pathsep + str(ROOT/'src'), HERMES_BUNDLED_PLUGINS=str(root/'empty-plugins'), CWB_INFERENCE_CAPABILITY=capability)
+    (root/'empty-plugins').mkdir()
+    for path in plan.required_empty_directories: Path(relocate(path)).mkdir(parents=True,exist_ok=True)
+    (root/'task').mkdir(); (root/'scratch').mkdir()
+    config_text = relocate(plan.config_json)
+    Path(env['HERMES_HOME'],'config.yaml').write_text(config_text)
+    (root/'task/prompt.txt').write_text(relocate(plan.prompt))
+    os.environ.clear(); os.environ.update(env)
+    sys.argv = ['hermes', *[relocate(a) for a in plan.argv[1:]]]
+    stdout, stderr = io.StringIO(), io.StringIO()
+    code = 0
+    try:
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            try: runpy.run_module('hermes_cli.main', run_name='__main__')
+            except SystemExit as exc: code = exc.code or 0
+    finally:
+        server.shutdown();server.server_close();thread.join(3)
+    events=[]; invalid=[]
+    for line in stdout.getvalue().splitlines():
+        try: events.append(json.loads(line))
+        except ValueError: invalid.append(line[:160])
+    terminal=[e for e in events if e.get('type')=='result']
+    passed=(code==0 and not errors and not invalid and len(captured)==2 and len(terminal)==1
+            and terminal[0].get('exit_code')==0 and 'SYNTHETIC_ROUTED_HERMES_OK' in terminal[0].get('text','')
+            and any(e.get('type')=='tool_result' and e.get('name')=='read_file' for e in events))
+    imports={}
+    for module in list(sys.modules.values()):
+        name=getattr(module,'__file__',None)
+        if not name:continue
+        path=Path(name).resolve()
+        if path.is_relative_to(source) and path.is_file():
+            rel='hermes/'+str(path.relative_to(source));sha=hashlib.sha256(path.read_bytes()).hexdigest()
+            assert manifest['files_sha256'].get(rel)==sha
+            imports[rel]=sha
+    return {'passed':passed,'model':model,'effort':profile.effort,'cli_exit':code,'inferences':len(captured),
+        'native_tool_executed':any(e.get('type')=='tool_result' and e.get('name')=='read_file' for e in events),
+        'terminal':terminal,'invalid_stdout':invalid,'errors':errors,'refused_shapes':refused_shapes,'stderr':stderr.getvalue()[-5000:],
+        'request_shapes':[{'keys':sorted(r),'model':r.get('model'),'reasoning':r.get('reasoning'),
+            'tools':[t.get('name') for t in r.get('tools',[])]} for r in captured],
+        'imported_source_hashes':imports,'required_source_hashes':required_sources,'hermes_commit':HERMES_COMMIT,'loopback_connections':len(targets),
+        'real_provider_calls':False,'real_credentials':False,'container_boundary_proved':False,
+        'workbench_sources_sha256':{name:hashlib.sha256((ROOT/'src/cloudworkbench'/name).read_bytes()).hexdigest() for name in ('hermes_adapter.py','native_responses.py','inference_service.py','workflow_instructions.py')},
+        'scope':'actual pinned Hermes CLI, local relocated generated config, synthetic HTTP Responses and real file tool'}
+
+
+def main():
+    parser=argparse.ArgumentParser()
+    parser.add_argument('--child',action='store_true')
+    parser.add_argument('--model',choices=['gpt-6-astra','gpt-5.6-sol','grok-4.6'],default='gpt-6-astra')
+    parser.add_argument('--source',type=Path,default=ROOT.parent/'work/hermes-pstack-image-context/hermes')
+    parser.add_argument('--python',type=Path,default=Path.home()/'.hermes/hermes-agent/venv/bin/python')
+    parser.add_argument('--output',type=Path)
+    args=parser.parse_args()
+    if args.child:
+        print(json.dumps(child(args.source.resolve(),args.model)))
+        return
+    with tempfile.TemporaryDirectory(prefix='cwb-routed-cli-') as folder:
+        env={'PATH':'/usr/bin:/bin','HOME':folder,'HERMES_HOME':folder+'/tool/hermes',
+             'PYTHONPATH':str(args.source.resolve())+os.pathsep+str(ROOT/'src'),
+             'PYTHONDONTWRITEBYTECODE':'1','HERMES_ENABLE_PROJECT_PLUGINS':'0','HERMES_INTERACTIVE':'0'}
+        result=subprocess.run([str(args.python),str(Path(__file__).resolve()),'--child','--source',str(args.source.resolve()),
+            '--model',args.model],cwd=folder,env=env,capture_output=True,text=True,timeout=90)
+        if result.returncode:raise RuntimeError('isolated_cli_failed:'+result.stderr[-5000:])
+        receipt=json.loads(result.stdout)
+        receipt['child_stderr']=result.stderr[-1500:]
+    if args.output:
+        with args.output.open('x') as out:out.write(json.dumps(receipt,indent=2)+'\n')
+    print(json.dumps({k:v for k,v in receipt.items() if k!='imported_source_hashes'},indent=2))
+    if not receipt['passed']:raise SystemExit(1)
+
+
+if __name__=='__main__':main()

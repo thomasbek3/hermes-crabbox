@@ -1,0 +1,9 @@
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+USER root
+COPY SOUL.md /opt/hermes/trusted-plugins/cloud-evidence/SOUL.md
+COPY crabbox_guest.py /opt/cloudworkbench/crabbox_guest.py
+COPY crabbox_guest.py /opt/cloud-pstack/cloudworkbench/crabbox_guest.py
+COPY pstack_child.py /opt/cloud-pstack/cloudworkbench/pstack_child.py
+RUN chmod 0444 /opt/hermes/trusted-plugins/cloud-evidence/SOUL.md
+WORKDIR /workspace

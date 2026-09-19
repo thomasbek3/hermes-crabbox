@@ -1,0 +1,12 @@
+# Build with an exact locally qualified image ID. No network/install step.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+USER root
+ENV PYTHONDONTWRITEBYTECODE=1
+COPY cloudworkbench /opt/cloud-provider/cloudworkbench
+RUN chmod -R a-w /opt/cloud-provider && \
+    /opt/hermes/venv/bin/python -c "import sys; sys.path.insert(0, '/opt/cloud-provider'); import cloudworkbench.provider_main"
+ENV PYTHONPATH=/opt/cloud-provider PYTHONDONTWRITEBYTECODE=1
+USER 958:959
+WORKDIR /tmp
+ENTRYPOINT ["/opt/hermes/venv/bin/python", "-m", "cloudworkbench.provider_main"]

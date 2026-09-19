@@ -1,0 +1,21 @@
+# Authenticated remediation input
+
+`collect_remediation_input(scheduler, source_root_id, expected_generation=..., forbidden_values=...)` reads an already closed and released qualified workflow. It returns frozen `RemediationInput` with `canonical_json`, `sha256`, `to_dict()` and `public_record()`; the two dictionary projections are identical and detached. The canonical UTF-8 document is limited to 16 KiB. Oversize evidence is refused, never truncated.
+
+Collection authenticates the saved stopped-workflow record and exact root cleanup, reconstructs the strict stopped-prefix proof, and uses the existing historical stage/task readers. Each ordered record contains the original typed stage output and exact decision/release references. A protected-task blocker also includes its check definitions and authenticated assessment: exit status, cleanup confirmation, log hashes, remaining criteria and outcome. Check outcome is recomputed from the projected check definitions and original acceptance criteria during pure schema validation. The projection includes the original goal, acceptance, environment hashes, request hash and source scope. It excludes controller storage locations, script contents and environment private paths. Worker text can still contain arbitrary user/model prose; all of it remains untrusted data and is scanned using the supplied known-secret policy.
+
+The snapshot is read under the bounded controller transaction. Detached file authentication does not hold the live database transaction. A second historical stop load confirms the same source receipt after collection. This does not authorize execution, rebind a workspace or assert that captured candidate files are ready for promotion; admission and revision rebinding remain separate controller operations.
+
+`authenticate_frozen_remediation(scheduler, remediation, destination=..., forbidden_values=...)` validates the frozen brief/hash and required provenance subset, then recollects its historical source. Source owner, project and session must match the destination, while root IDs must differ. It binds the source generation, stopped proof, cleanup receipt, blocker and carried revision. Parent-owned lineage and budget fields can coexist in the provenance; this function does not interpret them as admission authority.
+
+## Context contract
+
+Ordinary `StageContext` remains schema 1 with unchanged canonical/rendered bytes. A remediation workflow uses schema 2 and adds one `remediation` sidecar containing `input_sha256` and `input`. Its ordinary `records` and assignment `context_refs` continue to refer only to finalized prior stages in the current root. The sidecar has a distinct `BEGIN UNTRUSTED REMEDIATION DATA` section and is included in the context digest.
+
+`load_stage_context` authenticates this sidecar outside the destination's short database transaction, then rechecks the destination snapshot. Pure `validate_stage_context` checks canonical shape and hashes; as before, it does not prove database authority. No source artifact IDs are inserted into current-root context references.
+
+## Local evidence
+
+`evidence/remediation-input-context-corrected-tests.xml` records 89 passing cases across the new brief and existing context suites. Tests use real schema-3 admission, exact root input rebinding, first-child claim and context load. Source cases include a rejected code review, a nonzero protected check and an empty-check mandatory-criterion result. Additional checks cover unclosed sources, owner/project/session mismatch, modified frozen evidence, retained-file and registered-metadata drift, known secrets, unsupported shape, noncanonical/duplicate-key JSON and the explicit byte bound.
+
+Providers and Docker lifecycle are synthetic fixture boundaries; the protected script in the rejection fixture actually executes locally. This is not production, remote Docker or provider-inference qualification. Historical initial evidence is retained: a test invocation without the repository on `sys.path` failed collection; the first combined run exposed an incorrect fixture SQL column and renderer compatibility with the existing negative-test builder. Both were corrected, while strict final validation remains intact.

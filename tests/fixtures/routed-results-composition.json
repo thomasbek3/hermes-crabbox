@@ -1,0 +1,51 @@
+{
+  "source_receipt": "evidence/routed-results-linux-20260918.json",
+  "source_receipt_sha256": "ccba1b19731a3b6335ebd93ef5d1f75cdb8775e153457bbc2787941285910eb4",
+  "source_receipt_passed": false,
+  "note": "Actual synthetic Linux composition metadata; original receipt remains failed and unchanged.",
+  "composition": {
+    "repeat_equal": true,
+    "used_saved_observation": true,
+    "artifact_count": 2,
+    "artifact_ids": [
+      "215dd8ab61d59049c3c24bfb5052c0e0a67812bd2c41c01d941756ef4afbe3ef",
+      "observation-ce634a41887a21260f912c41aae184b0d284a746e684fc640719b07e2100498c"
+    ],
+    "artifact_hashes": {
+      "215dd8ab61d59049c3c24bfb5052c0e0a67812bd2c41c01d941756ef4afbe3ef": "70cd8872c9e1ce5efc7678b9bdd3f7670dc5ba743a6dadaf3bc10c35d0ba881d",
+      "observation-ce634a41887a21260f912c41aae184b0d284a746e684fc640719b07e2100498c": "ad9611dc7db4177b6c38951dc7f88e2398696bf29358875606651ff2c40cad71"
+    },
+    "artifact_provenance": [
+      "controller_captured_candidate",
+      "worker_reported"
+    ],
+    "candidate_sha256": "70cd8872c9e1ce5efc7678b9bdd3f7670dc5ba743a6dadaf3bc10c35d0ba881d",
+    "candidate_file_sha256": "f596be292b4c2faeb4ed41836b36eee239dbfa247ca53aedad0139babe109da5",
+    "input_revision_sha256": "9b7d543a03e7a825130f61b4103dd933e4ea4ef33d53803c9afb2330067bda36",
+    "export_receipt_sha256": "68bb98960ea14e9a592333e58101b097904e5aeadd960227422135e8d6722ba7",
+    "cleanup_sha256": "f5e8543c3b7e21a9b57dcf8f23af6a738d35d090fa9541ca699de1b0cb057780",
+    "observation_sha256": "ad9611dc7db4177b6c38951dc7f88e2398696bf29358875606651ff2c40cad71",
+    "export_create_calls": 1,
+    "export_start_calls": 1,
+    "replay_no_create_start": true,
+    "secret_replay_refused": true,
+    "secret_replay_state_unchanged": true,
+    "provider_objects_remaining": 0,
+    "provider_material_cleaned": 2,
+    "service_closed": true,
+    "root_occupancy_retained": true,
+    "account_reservation_retained": true,
+    "counts": {
+      "request_leases": 2,
+      "released_requests": 2,
+      "dispatches": 2,
+      "budget_requests": 2,
+      "root_used": 2,
+      "attempt_used": 2,
+      "gates": 0
+    },
+    "verification_pass": false,
+    "candidate_verified": false,
+    "scheduler_seat_released": false
+  }
+}

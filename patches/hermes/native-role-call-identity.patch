@@ -1,0 +1,22 @@
+--- a/model_tools.py
++++ b/model_tools.py
+@@ -817,8 +817,18 @@
+ def _execute_tool(function_name: str, function_args: Dict[str, Any], original_args: Dict[str, Any], ids: _CallIds,
+                   *, user_task: Optional[str], enabled_tools: Optional[List[str]], skip_tool_execution_middleware: bool) -> Any:
+     """Run the registry handler (through tool-execution middleware unless skipped)
+-    with the approval observability context bound for the duration."""
++    with the approval observability context bound for the duration.
++
++    Cloud role IDs are runtime/provider correlation, may repeat or be model-influenced,
++    and never grant controller authorization. Only the two named handlers receive them.
++    """
+     dispatch_kwargs: Dict[str, Any] = {"task_id": ids.task_id, "session_id": ids.session_id}
++    if function_name in {"cloud_request_roles", "cloud_get_role_results"}:
++        native_ids = (ids.session_id, ids.tool_call_id)
++        if not all(type(value) is str and 1 <= len(value) <= 256
++                   and all(33 <= ord(char) <= 126 for char in value) for value in native_ids):
++            return tool_error("native_role_call_identity_unavailable")
++        dispatch_kwargs["tool_call_id"] = ids.tool_call_id
+     if function_name == "execute_code":
+         # Prefer the caller's list so subagents can't overwrite the parent's
+         # tool set via the process-global.

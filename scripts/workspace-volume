@@ -1,0 +1,82 @@
+#!/usr/bin/python3
+"""Root-installed fixed-purpose helper; no shell, user paths, or destructive operation."""
+import fcntl
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+
+ROOT = Path('/var/lib/cloud-workbench/workspaces')
+
+def run(args):
+    return subprocess.run(args, check=True, capture_output=True, text=True).stdout
+
+def main():
+    if os.geteuid() != 0 or len(sys.argv) != 5:
+        raise ValueError('root and session,size,uid,gid required')
+    session, size, uid, gid = sys.argv[1:]
+    if not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}', session):
+        raise ValueError('invalid session')
+    size, uid, gid = map(int, (size, uid, gid))
+    if not (64 <= size <= 102400 and 1 <= uid <= 2147483647 and 1 <= gid <= 2147483647):
+        raise ValueError('invalid limits or identity')
+    if ROOT != ROOT.resolve() or not ROOT.is_dir() or ROOT.stat().st_uid != 0 or ROOT.stat().st_mode & 0o022:
+        raise ValueError('workspace root must exist and be root-owned, not group/world writable')
+    volumes = ROOT / '.volumes'
+    volumes.mkdir(mode=0o700, exist_ok=True)
+    if volumes != volumes.resolve() or volumes.stat().st_uid != 0 or volumes.stat().st_mode & 0o077:
+        raise ValueError('unsafe volume store')
+    lockfd = os.open(volumes / '.lock', os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(lockfd, 'w') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        target = ROOT / session
+        target.mkdir(mode=0o755, exist_ok=True)
+        if target != target.resolve() or target.stat().st_uid != 0:
+            raise ValueError('unsafe mount point')
+        image = volumes / (session + '.img')
+        receipt = volumes / (session + '.json')
+        expected = {'session':session,'bytes':size*1024*1024,'uid':uid,'gid':gid}
+        if image.exists():
+            if image != image.resolve() or image.stat().st_uid != 0 or image.stat().st_nlink != 1 or image.stat().st_size != expected['bytes']:
+                raise ValueError('unsafe or differently sized existing volume')
+            if not receipt.is_file() or receipt != receipt.resolve() or json.loads(receipt.read_text()) != expected:
+                raise ValueError('existing volume metadata mismatch; manual inspection required')
+        else:
+            available = os.statvfs(ROOT).f_bavail * os.statvfs(ROOT).f_frsize
+            if available < expected['bytes'] + 20*1024**3:
+                raise ValueError('host free disk reserve insufficient')
+            fd = os.open(image, os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW, 0o600)
+            with os.fdopen(fd, 'wb') as output:
+                # Allocate backing capacity up front; sparse-only reservation can overcommit.
+                os.posix_fallocate(output.fileno(), 0, expected['bytes'])
+                os.fsync(output.fileno())
+            run(['/usr/sbin/mkfs.ext4','-q','-F','-m','0',str(image)])
+            receipt.write_text(json.dumps(expected))
+            os.chmod(receipt,0o600)
+        mounted = subprocess.run(['/usr/bin/findmnt','--noheadings','--mountpoint',str(target)],capture_output=True).returncode == 0
+        if not mounted:
+            if any(target.iterdir()):
+                raise ValueError('refuse mounting over existing files')
+            run(['/usr/bin/mount','-o','loop,nosuid,nodev',str(image),str(target)])
+        info=json.loads(run(['/usr/bin/findmnt','--json','--mountpoint',str(target),'--output','SOURCE,FSTYPE,OPTIONS']))['filesystems'][0]
+        if info['fstype']!='ext4' or not re.fullmatch(r'/dev/loop[0-9]+', info['source']) or not {'nosuid','nodev'} <= set(info['options'].split(',')):
+            raise ValueError('unexpected mounted filesystem')
+        backing=run(['/usr/sbin/losetup','--noheadings','--output','BACK-FILE',info['source']]).strip()
+        if backing != str(image):
+            raise ValueError('wrong loop backing file')
+        for name in ('work','native'):
+            path=target/name
+            path.mkdir(mode=0o2770,exist_ok=True)
+            if path != path.resolve() or not path.is_dir():
+                raise ValueError('unsafe workspace child')
+            os.chown(path,uid,gid)
+            os.chmod(path,0o2770)
+        print(json.dumps({'mount':str(target),'workspace':str(target/'work'),'native':str(target/'native'),'bytes':expected['bytes']}))
+
+if __name__=='__main__':
+    try: main()
+    except Exception as exc:
+        print('workspace provisioning failed: '+type(exc).__name__,file=sys.stderr)
+        sys.exit(1)

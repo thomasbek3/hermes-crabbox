@@ -1,0 +1,49 @@
+#!/usr/bin/env python3
+"""Single authorized corrective Grok review on supported macOS sandbox host."""
+import hashlib,json,os,signal,socket,subprocess,tempfile,time
+from pathlib import Path
+
+repo=Path(__file__).resolve().parents[1]
+source=repo/'reviews/native-integration-grok-prompt.txt'
+body=source.read_bytes();assert hashlib.sha256(body).hexdigest()=='4446d599369eaaea2814da121d7c22a60c6beb781d23bc623f27bc2529271588'
+root=Path(tempfile.mkdtemp(prefix='cwb-native-grok-review-'));root.chmod(0o700)
+prompt=root/'prompt.txt';prompt.write_bytes(body);prompt.chmod(0o600)
+exe=Path('/Users/thomasbekkers/.grok/bin/grok')
+args=[str(exe),'--prompt-file',str(prompt),'-m','grok-4.6','--reasoning-effort','xhigh',
+    '--output-format','json','--sandbox','read-only','--permission-mode','default',
+    '--no-subagents','--no-memory','--disable-web-search','--max-turns','30',
+    '--tools','','--deny','*','--no-leader']
+env={'HOME':'/Users/thomasbekkers','GROK_HOME':'/Users/thomasbekkers/.grok','PATH':'/usr/bin:/bin','TERM':'dumb','LANG':'en_US.UTF-8'}
+os.umask(0o077)
+receipt={'host':socket.gethostname(),'uid':os.geteuid(),'model_requested':'grok-4.6','effort_requested':'xhigh',
+    'cli_version':'1.0.30','cli_sha256':hashlib.sha256(exe.read_bytes()).hexdigest(),'started_at':time.time(),
+    'wall_limit_seconds':900,'argv':args,'prompt_sha256':hashlib.sha256(body).hexdigest(),
+    'source_binding':'evidence/native-integration-grok-source.json','source_changes_permitted':False,
+    'local_auth_status':'grok.com logged in (CLI metadata)','credential_values_read_or_copied':False,'cwd':str(root)}
+process=None
+try:
+    with (repo/'reviews/native-integration-grok-raw.json').open('xb') as out,(repo/'reviews/native-integration-grok.stderr').open('xb') as err:
+        process=subprocess.Popen(args,cwd=root,env=env,stdin=subprocess.DEVNULL,stdout=out,stderr=err,start_new_session=True)
+        deadline=time.monotonic()+900
+        while process.poll() is None:
+            if time.monotonic()>=deadline or out.tell()+err.tell()>16*1024*1024:
+                receipt['interrupted']='wall_timeout' if time.monotonic()>=deadline else 'output_limit'
+                os.killpg(process.pid,signal.SIGTERM)
+                try:process.wait(timeout=5)
+                except subprocess.TimeoutExpired:os.killpg(process.pid,signal.SIGKILL);process.wait(timeout=5)
+                break
+            time.sleep(.2)
+        receipt['exit_code']=process.returncode
+    raw=(repo/'reviews/native-integration-grok-raw.json').read_bytes();err=(repo/'reviews/native-integration-grok.stderr').read_bytes()
+    receipt.update(stdout_bytes=len(raw),stderr_bytes=len(err),stdout_sha256=hashlib.sha256(raw).hexdigest(),stderr_sha256=hashlib.sha256(err).hexdigest())
+    receipt['sandbox_warning_present']=any(x in err.lower() for x in (b'sandbox warning',b'sandbox failed',b'failed to apply sandbox',b'continuing without sandbox'))
+    try:
+        parsed=json.loads(raw);receipt['parsed_json']=True;receipt['top_level_type']=type(parsed).__name__
+        receipt['top_level_keys']=list(parsed) if isinstance(parsed,dict) else []
+    except (ValueError,UnicodeError):receipt['parsed_json']=False
+finally:
+    if process is not None and process.poll() is None:os.killpg(process.pid,signal.SIGKILL);process.wait(timeout=5)
+    prompt.unlink(missing_ok=True);source.unlink(missing_ok=True)
+    receipt.update(prompt_deleted=not prompt.exists(),local_source_prompt_deleted=not source.exists(),finished_at=time.time())
+    (repo/'evidence/native-integration-grok-local-execution.json').write_text(json.dumps(receipt,indent=2)+'\n')
+    print(json.dumps(receipt),flush=True)

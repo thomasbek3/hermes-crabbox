@@ -1,0 +1,60 @@
+#!/usr/bin/env python3
+"""Add SOUL-enabled images while preserving existing pinned environments."""
+import argparse, copy, importlib.util, json, os
+from pathlib import Path
+import socket, sqlite3, time
+
+ROOT=Path('/var/lib/cloud-workbench')
+
+def main():
+    p=argparse.ArgumentParser();p.add_argument('--single-image',required=True);p.add_argument('--routed-image',required=True);p.add_argument('--execute',action='store_true');a=p.parse_args()
+    assert os.geteuid()==0 and socket.gethostname()=='omarchy'
+    spec=importlib.util.spec_from_file_location('activation', '/var/lib/cloud-workbench/qualifications/activate-crabbox-pstack-20260919.py')
+    h=importlib.util.module_from_spec(spec);spec.loader.exec_module(h)
+    from cloudworkbench.environments import EnvironmentRegistry, validate_manifest
+    paths={n:Path('/etc/cloud-workbench')/(n+'.json') for n in ('api','worker')}
+    raw={n:path.read_bytes() for n,path in paths.items()};old={n:json.loads(v) for n,v in raw.items()};updated=copy.deepcopy(old)
+    previous=Path(old['worker']['environment_registry']);assert old['api']['environment_registry']==str(previous)
+    target=ROOT/'environments/hermes-worker-soul-v1.db';assert not target.exists()
+    additions=[]
+    for base,version,image,routed in [('hermes-tasks-desktop-evidence-v1','hermes-tasks-desktop-soul-v1',a.single_image,False),('hermes-tasks-pstack-evidence-v1','hermes-tasks-pstack-soul-v1',a.routed_image,True)]:
+        meta=json.loads(h.run('docker','image','inspect',image))[0];assert meta['Id']==image and meta['Architecture']=='amd64'
+        manifest=copy.deepcopy(EnvironmentRegistry(previous).get('hermes-tasks',base)['manifest'])
+        manifest.update(version=version,base_image_digest=manifest['image_digest'],image_digest=image)
+        manifest,digest=validate_manifest(manifest)
+        additions.append({'manifest':manifest,'manifest_sha256':digest,'routed':routed})
+        for cfg in updated.values():
+            cfg['environment_registry']=str(target);pr=cfg['projects']['hermes-tasks'];assert version not in pr['environment_versions']
+            pr['environment_versions'].append(version);pr['operator_approved_environments'][version]=digest;pr['environment_resources'][version]=manifest['resources']
+        cfg=updated['worker'];cfg['operator_approved_images'].append(image);policy=cfg['hermes_runtime']
+        for key in ('crabbox_images','crabbox_desktop_images','tool_image_allowlist'):
+            policy[key].append(image)
+        if routed:policy['crabbox_pstack_images'].append(image)
+        policy['environment_secret_refs_by_image'][image]=manifest['secret_refs']
+    h.idle()
+    receipt={'stage':'prepared','images':[a.single_image,a.routed_image],'environments':[{k:v for k,v in r.items() if k!='manifest'}|{'version':r['manifest']['version']} for r in additions],'qualified':False}
+    if not a.execute:print(json.dumps(receipt));return
+    backup=ROOT/'operator-backups'/('worker-soul-'+time.strftime('%Y%m%dT%H%M%SZ',time.gmtime()));backup.mkdir(mode=0o700)
+    for n,v in raw.items():h.atomic(backup/(n+'.json'),v)
+    h.sqlite_copy(previous,backup/'environments.db');receipt['backup']=str(backup)
+    legacy=h.run('systemctl','show','cloudd','--property=MainPID','--value')
+    try:
+        for unit in h.SERVICES:h.run('systemctl','stop',unit)
+        h.idle();assert all(p.read_bytes()==raw[n] for n,p in paths.items())
+        h.sqlite_copy(previous,target);registry=EnvironmentRegistry(target)
+        for item in additions:assert registry.register(item['manifest'])['manifest_sha256']==item['manifest_sha256']
+        os.chown(target,0,960);target.chmod(0o640)
+        for n,path in paths.items():h.atomic(path,h.encoded(updated[n]),0o640,960)
+        for unit in reversed(h.SERVICES):h.run('systemctl','start',unit)
+        assert all(h.run('systemctl','is-active',unit)=='active' for unit in h.SERVICES)
+        assert h.run('systemctl','show','cloudd','--property=MainPID','--value')==legacy
+        receipt['stage']='activated'
+    except BaseException:
+        for unit in h.SERVICES:h.run('systemctl','stop',unit)
+        for n,path in paths.items():h.atomic(path,raw[n],0o640,960)
+        for unit in reversed(h.SERVICES):h.run('systemctl','start',unit)
+        receipt['stage']='rolled_back';raise
+    finally:h.atomic(backup/'receipt.json',h.encoded(receipt))
+    print(json.dumps(receipt,indent=2))
+
+if __name__=='__main__':main()

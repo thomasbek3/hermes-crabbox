@@ -1,0 +1,19 @@
+[Unit]
+Description=Cloud Workbench v2 trusted Docker supervisor
+After=docker.service network.target
+Requires=docker.service
+
+[Service]
+User=cloud-worker
+Group=cloud-workbench
+SupplementaryGroups=docker cloud-job
+WorkingDirectory=/opt/cloud-workbench
+ExecStart=/opt/cloud-workbench/.venv/bin/python -m cloudworkbench.runner --config /etc/cloud-workbench/worker.json
+Restart=on-failure
+RestartSec=3
+UMask=0007
+# This supervisor is a trusted host administration boundary. Its fixed-purpose
+# root-owned volume helper needs sudo; the API and jobs have no such authority.
+
+[Install]
+WantedBy=multi-user.target

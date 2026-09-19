@@ -1,0 +1,21 @@
+[Unit]
+Description=Cloud Workbench v2 private API
+After=network.target
+
+[Service]
+User=cloud-control
+Group=cloud-workbench
+WorkingDirectory=/opt/cloud-workbench
+ExecStart=/opt/cloud-workbench/.venv/bin/python -m cloudworkbench.server --config /etc/cloud-workbench/api.json
+Restart=on-failure
+RestartSec=3
+UMask=0007
+NoNewPrivileges=true
+ProtectHome=true
+ProtectSystem=strict
+PrivateTmp=true
+ReadWritePaths=/var/lib/cloud-workbench/control /var/lib/cloud-workbench/inputs
+RestrictAddressFamilies=AF_UNIX AF_INET
+
+[Install]
+WantedBy=multi-user.target

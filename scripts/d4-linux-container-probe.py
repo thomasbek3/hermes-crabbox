@@ -1,0 +1,121 @@
+"""Disposable Linux permission fixture. No provider or personal credential access."""
+import errno
+import hashlib
+import json
+import os
+from pathlib import Path
+import signal
+import socket
+import sys
+import time
+
+from cloudworkbench.role_broker import RoleBroker,ParentScope,BrokerError
+from cloudworkbench.role_broker_transport import RoleClient,RoleSocketServer
+import cloudworkbench,cloudworkbench.role_broker,cloudworkbench.role_broker_transport
+
+ROOT=Path('/run/cloud-role-broker')
+SESSION='native-linux-fixture'
+SCOPE=ParentScope('fixture-owner','fixture-project','fixture-root','fixture-parent',1,SESSION)
+network_attempts=[]
+original_connect=socket.socket.connect
+
+def connect(sock,address):
+    if sock.family != socket.AF_UNIX:
+        network_attempts.append(True)
+        raise RuntimeError('non_uds_forbidden')
+    return original_connect(sock,address)
+socket.socket.connect=connect
+
+def metadata():
+    cgroup=Path('/proc/self/cgroup').read_text().strip()
+    limits={}
+    for name in ('memory.max','pids.max','cpu.max'):
+        path=Path('/sys/fs/cgroup')/name
+        limits[name]=path.read_text().strip() if path.exists() else None
+    imports={}
+    for module in (cloudworkbench,cloudworkbench.role_broker,cloudworkbench.role_broker_transport):
+        path=Path(module.__file__).resolve();assert path.is_relative_to(Path('/proof/source'))
+        imports[str(path)] = hashlib.sha256(path.read_bytes()).hexdigest()
+    return {'uid':os.getuid(),'gid':os.getgid(),'groups':os.getgroups(),'cgroup_namespace':cgroup,'limits':limits,
+            'python':sys.version,'imported_source_sha256':imports,'network_attempts':len(network_attempts)}
+
+def denied(operation):
+    try:
+        operation()
+    except OSError as error:
+        assert error.errno in {errno.EACCES,errno.EPERM,errno.EROFS},error.errno
+        return error.errno
+    raise AssertionError('operation_was_not_denied')
+
+def controller():
+    broker=RoleBroker('/tmp/controller.sqlite',authorize_parent=lambda db,scope:
+        scope==SCOPE and db.execute('SELECT active FROM fixture_parent').fetchone()[0]==1)
+    with broker.transaction() as db:db.execute('CREATE TABLE fixture_parent(active INT)');db.execute('INSERT INTO fixture_parent VALUES(1)')
+    grant,token=broker.issue(SCOPE,roles=('feature',),expires_at=time.time()+300)
+    server=RoleSocketServer(ROOT/'socket',broker,SCOPE,hashlib.sha256(token.encode()).hexdigest(),socket_gid=27002)
+    pending=ROOT/'.client.staging'
+    fd=os.open(pending,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o400)
+    with os.fdopen(fd,'w') as out:
+        json.dump({'capability':token,'native_session_id':SESSION},out);out.flush();os.fsync(out.fileno())
+    signal.signal(signal.SIGTERM,lambda *_:server.close())
+    print(json.dumps({'ready':True,**metadata()}),flush=True)
+    os.rename(pending,ROOT/'.client.pending')
+    server.serve()
+    with broker.transaction() as db:count=db.execute('SELECT COUNT(*) FROM role_broker_pending').fetchone()[0]
+    print(json.dumps({'stopped':True,'health':server.health(),'pending_count':count,**metadata()}),flush=True)
+
+def client():
+    endpoint=RoleClient.from_file()
+    native_call='linux-permission-call-'+sys.argv[1]
+    first=endpoint.call('cloud_request_roles',{'role':'feature','task':'Synthetic Linux permission proof'},session_id=SESSION,tool_call_id=native_call)
+    second=endpoint.call('cloud_request_roles',{'role':'feature','task':'Synthetic Linux permission proof'},session_id=SESSION,tool_call_id=native_call)
+    assert first==second and first['state']=='pending'
+    observed=endpoint.call('cloud_get_role_results',{'request_id':first['id']},session_id=SESSION,tool_call_id='linux-read-call')
+    assert observed==first
+    denied_ops={
+        'config_write':denied(lambda:os.open(ROOT/'client.json',os.O_WRONLY)),
+        'config_chmod':denied(lambda:os.chmod(ROOT/'client.json',0o600)),
+        'config_unlink':denied(lambda:os.unlink(ROOT/'client.json')),
+        'directory_create':denied(lambda:os.mkdir(ROOT/'untrusted')),
+        'socket_unlink':denied(lambda:os.unlink(ROOT/'socket')),
+        'source_write':denied(lambda:os.open('/proof/probe.py',os.O_WRONLY)),
+    }
+    mounts={line.split()[4]:line.split()[5].split(',') for line in Path('/proc/self/mountinfo').read_text().splitlines()}
+    role_readonly=sys.argv[1]!='permitted-rw'
+    assert ('ro' if role_readonly else 'rw') in mounts[str(ROOT)] and 'ro' in mounts['/proof']
+    assert not Path('/var/run/docker.sock').exists() and not Path('/tmp/controller.sqlite').exists()
+    assert not network_attempts
+    print(json.dumps({'case':sys.argv[1],'pending_retry_identical':True,'result_read':True,'tamper_denied':denied_ops,'role_mount_readonly':role_readonly,'request_id':first['id'],'native_call_id':native_call,'source_mount_readonly':True,'controller_db_absent':True,'docker_socket_absent':True,'network_attempts':0,**metadata()}))
+
+def foreign():
+    assert denied(lambda:os.open(ROOT/'client.json',os.O_RDONLY))==errno.EACCES
+    with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as connection:
+        connect_errno=denied(lambda:connection.connect(str(ROOT/'socket')))
+    try:RoleClient.from_file()
+    except BrokerError as error:assert error.code=='client_configuration_unavailable'
+    else:raise AssertionError('foreign_config_accepted')
+    print(json.dumps({'case':sys.argv[1],'config_read_denied':True,'socket_connect_denied':connect_errno,'fixed_client_error':True,**metadata()}))
+
+def invalid_config():
+    fd=os.open(ROOT/'client.json',os.O_RDONLY|os.O_NOFOLLOW)
+    with os.fdopen(fd,'rb') as stream:
+        info=os.fstat(stream.fileno());assert stream.read(1)==b'{'
+    import stat
+    wrong_owner=info.st_uid!=0;wrong_mode=stat.S_IMODE(info.st_mode) not in {0o400,0o440}
+    assert wrong_owner if sys.argv[1]=='wrong-config-owner' else wrong_mode
+    try:RoleClient.from_file()
+    except BrokerError as error:assert error.code=='client_configuration_unavailable'
+    else:raise AssertionError('unsafe_config_accepted')
+    print(json.dumps({'case':sys.argv[1],'config_read_succeeded':True,'config_uid':info.st_uid,'config_mode':oct(stat.S_IMODE(info.st_mode)),
+        'observed_invalid_property':'owner' if wrong_owner else 'mode','fixed_client_refusal':True,**metadata()}))
+
+def no_mount():
+    assert not ROOT.exists() and not Path('/var/run/docker.sock').exists()
+    print(json.dumps({'case':'no-mount','role_directory_absent':True,'docker_socket_absent':True,**metadata()}))
+
+if sys.argv[1]=='controller':controller()
+elif sys.argv[1] in {'permitted','permitted-rw','same-group-other-uid'}:client()
+elif sys.argv[1] in {'foreign','permitted-uid-wrong-group'}:foreign()
+elif sys.argv[1] in {'wrong-config-owner','wrong-config-mode'}:invalid_config()
+elif sys.argv[1]=='no-mount':no_mount()
+else:raise SystemExit('unknown fixture mode')
