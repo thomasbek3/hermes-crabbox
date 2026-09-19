@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Private preview registry foundation
 
 This implements the grant/registry portion of Release B B00/B02. It does not expose a preview, configure DNS/TLS, attach networks, proxy traffic, authorize a browser session, or prove Docker ownership. B01/B03 and live browser/isolation acceptance remain open. Unconfigured origins, service policy or authority callback deny access.

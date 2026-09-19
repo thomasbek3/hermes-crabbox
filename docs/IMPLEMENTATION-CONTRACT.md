@@ -1,6 +1,11 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Shared implementation contracts
 
-Historical initial implementation interfaces below; current normative requirements are SPEC.md and SPEC-FIRST-CONTRACT.md. Full-spec review precedes any further implementation. Earlier ownership and freeze directives below are historical and must be reassigned explicitly for resumed work. Python 3.11+, FastAPI/Pydantic2, standard-library SQLite, pytest. Local source is synchronized to /home/thomas/cloud-workbench on Omarchy; do not alter legacy /home/thomas/cloud or port7777. Keep auth secrets out of source/logs. This is real implementation with explicit unsupported capabilities, not mock success.
+Historical initial implementation interfaces below; current normative requirements are SPEC.md and SPEC-FIRST-CONTRACT.md. Full-spec review precedes any further implementation. Earlier ownership and freeze directives below are historical and must be reassigned explicitly for resumed work. Python 3.11+, FastAPI/Pydantic2, standard-library SQLite, pytest. Local source is synchronized to /home/operator/cloud-workbench on Omarchy; do not alter legacy /home/operator/cloud or port7777. Keep auth secrets out of source/logs. This is real implementation with explicit unsupported capabilities, not mock success.
 
 ## Ownership
 Control delegate owns models.py, store.py, api.py and tests/test_store.py, tests/test_api.py. Runtime delegate owns runtime.py, egress.py, deploy/Dockerfile*, tests/test_runtime.py, tests/test_egress.py and runtime-related scripts only. Parent owns runner.py, adapters.py, artifacts.py, cli.py, deployment integration, evidence/checkpoints. Ask via message before crossing ownership.
@@ -28,4 +33,4 @@ Checkpoint 1 inventory/auth feasibility + architecture interfaces; checkpoint2 d
 - Parent runner owns legacy v1 active count and host-memory/disk-reserve measurement; claim passes external_running. API bind is 127.0.0.1:7780 for test service; wildcard forbidden.
 - Legacy jobs contain credential copies: never walk/import/backup their claude/,codex/,hermes/,claude.json subtrees. Legacy importer remains disabled until workspace-only allowlist reviewed.
 - Source-only backup was restored to isolated restore-proof directory and source hash matched. Fresh offline evidence v1-regressions.json includes timestamp/hash.
-- Final identities: cloud-control API without Docker, cloud-worker trusted supervisor with Docker authority; both distinct from personal Thomas and job UID. Prototype launch as Thomas is only explicit test mode, never final boundary.
+- Final identities: cloud-control API without Docker, cloud-worker trusted supervisor with Docker authority; both distinct from personal the original operator and job UID. Prototype launch as the original operator is only explicit test mode, never final boundary.

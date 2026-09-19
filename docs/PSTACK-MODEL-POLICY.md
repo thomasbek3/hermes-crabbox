@@ -1,9 +1,14 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Agreed Pstack model policy
 
-Status: approved by Thomas on 2026-09-17; implementation resumed by Thomas, not deployed. This document takes precedence over earlier model-role mappings in the project specification and handoffs. It does not change live Cursor configuration or the separate Mini Codex sol/high worker.
+Status: approved by the original operator on 2026-09-17; implementation resumed by the original operator, not deployed. This document takes precedence over earlier model-role mappings in the project specification and handoffs. It does not change live Cursor configuration or the separate Mini Codex sol/high worker.
 
 Engineering checkpoint reviews for this platform build use the call-grok skill,
-Grok 4.6/xhigh, under Thomas's 2026-09-18 instruction replacing the Fable skill.
+Grok 4.6/xhigh, under the operator's 2026-09-18 instruction replacing the Fable skill.
 This reviewer change does not alter the cloud-job role assignments below.
 
 ## Fixed role assignments

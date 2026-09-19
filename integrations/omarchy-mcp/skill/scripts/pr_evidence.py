@@ -14,7 +14,7 @@ import sys
 import tempfile
 import uuid
 
-from omarchy_cloud import Client, ClientError, read_file, segment
+from omarchy_cloud import Client, ClientError, connection_defaults, read_file, segment
 
 MAX_ASSETS = 12
 MAX_ASSET_BYTES = 50 * 1024**2
@@ -269,7 +269,7 @@ def main(argv=None):
         if args.pr is not None:
             pr_url(args.pr)
         require(not args.publish or args.pr is not None, 'publish_requires_explicit_pr_url')
-        client = Client(os.environ.get('OMARCHY_CLOUD_SERVER','https://omarchy.tail0d5eb6.ts.net'),
+        client = Client(connection_defaults()['server'],
             Path(os.environ.get('OMARCHY_CLOUD_TOKEN_FILE','~/.config/omarchy-cloud/token')).expanduser())
         result = prepare(client,args.session_id,args.pr,args.output_dir)
         if args.publish: result = publish(result)

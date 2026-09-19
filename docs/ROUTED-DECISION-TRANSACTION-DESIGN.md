@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Routed child decision transaction: proposed narrow next unit
 
 Status: read-only design against the current candidate schema and verifier. No implementation, schema mutation, tests or live operations were performed for this note. Parent owns the protected receipt reader/controller composition. This proposal concerns one child decision and its cleanup release, not final session promotion or automatic review repair.

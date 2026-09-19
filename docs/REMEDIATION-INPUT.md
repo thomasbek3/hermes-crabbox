@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Authenticated remediation input
 
 `collect_remediation_input(scheduler, source_root_id, expected_generation=..., forbidden_values=...)` reads an already closed and released qualified workflow. It returns frozen `RemediationInput` with `canonical_json`, `sha256`, `to_dict()` and `public_record()`; the two dictionary projections are identical and detached. The canonical UTF-8 document is limited to 16 KiB. Oversize evidence is refused, never truncated.

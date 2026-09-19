@@ -7,7 +7,7 @@ import pytest
 from cloudworkbench import provider_leases
 
 ROOT=Path(__file__).resolve().parents[1]
-spec=importlib.util.spec_from_file_location('hermes_activation',ROOT/'scripts/activate-hermes-api.py')
+spec=importlib.util.spec_from_file_location('hermes_activation',ROOT/'scripts/legacy/activate-hermes-api.py')
 a=importlib.util.module_from_spec(spec);spec.loader.exec_module(a)
 
 
@@ -43,7 +43,11 @@ def test_refuses_changed_global_policy(key,value):
     with pytest.raises(a.ActivationError):a.next_configs(old,'hermes-grok-v1',Path('/new.db'),Path('/auth.json'))
 
 
-def proof():return json.loads((ROOT/'evidence/hermes-api-live-passed/receipt.json').read_text())
+def proof():
+    path = ROOT/'evidence/hermes-api-live-passed/receipt.json'
+    if not path.is_file():
+        pytest.skip('Optional historical live activation receipt is not distributed')
+    return json.loads(path.read_text())
 
 def files(p):return {name:p['source_sha256']['cloudworkbench/'+name] for name in a.MODULES}
 

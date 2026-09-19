@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Registered repository delivery
 
 The worker can initialize a coding session from one operator-registered local Git repository at a full immutable commit. The current profile places that repository at the workspace root. Requests cannot supply arbitrary filesystem paths, clone URLs, shell commands, branches or moving refs.

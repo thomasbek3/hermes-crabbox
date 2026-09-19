@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Jev workflow router
 
 Implemented locally, not activated in the Omarchy service. The fixed role policy is `PSTACK-MODEL-POLICY.md`.
@@ -33,7 +38,7 @@ Fable returned REVISE; independently reproduced findings and dispositions are in
 
 ## Corrected live qualification
 
-Thomas authorized three additional short synthetic requests. The initial retry stopped before any API call because 1Password was locked; its receipt is retained as jev-workflow-three-preauth-block.jsonl. After op signin, exactly three requests were sent, with no retries. All selected the expected workflow: feature, plan_review, code_review. Provider-reported model jev-1.13.0; measured wall durations 0.510/0.402/0.477 seconds. These three synthetic requests prove key access and basic API/schema routing; they are not a held-out accuracy evaluation, a latency benchmark, or cloud job execution proof. No raw key or repository/personal content was sent or saved.
+the original operator authorized three additional short synthetic requests. The initial retry stopped before any API call because 1Password was locked; its receipt is retained as jev-workflow-three-preauth-block.jsonl. After op signin, exactly three requests were sent, with no retries. All selected the expected workflow: feature, plan_review, code_review. Provider-reported model jev-1.13.0; measured wall durations 0.510/0.402/0.477 seconds. These three synthetic requests prove key access and basic API/schema routing; they are not a held-out accuracy evaluation, a latency benchmark, or cloud job execution proof. No raw key or repository/personal content was sent or saved.
 
 Canonical receipt: evidence/jev-workflow-live-authorized-three.jsonl. It includes the validated probability distributions, confidence, reported token usage, and exact source hashes. A replay test validates those actual replies without network access. 159 focused tests pass in evidence/jev-workflow-final-tests.log. Both approved API batches are exhausted (five original attempts plus three corrected attempts); further paid tests require an additional allowance. No unattended 1Password service setup is claimed.
 

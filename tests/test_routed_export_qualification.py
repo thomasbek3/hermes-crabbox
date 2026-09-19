@@ -8,7 +8,7 @@ import sys
 import pytest
 
 ROOT=Path(__file__).resolve().parents[1]
-SCRIPT=ROOT/'scripts/qualify-routed-export-linux.py'
+SCRIPT=ROOT/'scripts/legacy/qualify-routed-export-linux.py'
 
 
 @pytest.fixture
@@ -109,7 +109,7 @@ def receipt(module,bundle):
                'tree_sha256':'e'*64,'collector_id':collector,'create_calls':0,'start_calls':0}}
     identity={'uid':959,'primary_gid':960,'groups':[959,960,966]}
     services={name:{'ActiveState':'active','MainPID':100+i} for i,name in enumerate(module.validate_bundle(bundle).SERVICES)}
-    return {'passed':True,'host':'omarchy','run_id':run,'image':module.IMAGE,'image_after':module.IMAGE,
+    return {'passed':True,'host':'archived-worker.invalid','run_id':run,'image':module.IMAGE,'image_after':module.IMAGE,
             'source_hashes':bundle['hashes'],'harness_sha256':bundle['harness_sha256'],'support_sha256':bundle['support_sha256'],
             'identity_before':identity,'identity_after':copy.deepcopy(identity),'services_before':services,'services_after':copy.deepcopy(services),
             'remaining':[],'fixture_absent':True,'children_reaped':True,'child_groups_absent':True,
@@ -208,7 +208,7 @@ def test_failed_child_raw_stderr_is_never_exposed(module,wire):
 
 
 def test_finish_worker_reads_success_after_actual_ready_line_without_loss(module):
-    support=module.support_module({'support':(ROOT/'scripts'/module.SUPPORT).read_text()})
+    support=module.support_module({'support':(ROOT/'scripts/legacy'/module.SUPPORT).read_text()})
     code="import json; print(json.dumps({'ready':True}),flush=True);print(json.dumps({'passed':True,'fixture':'safe'}),flush=True)"
     child=subprocess.Popen([sys.executable,'-I','-c',code],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
     assert support.ready_line(child)=={'ready':True}

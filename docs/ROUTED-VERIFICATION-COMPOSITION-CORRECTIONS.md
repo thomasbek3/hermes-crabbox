@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Protected verifier composition corrections
 
 These corrections affect the undeployed routed verifier preparation/result composition. They do not authorize terminal decisions, workflow gates, session promotion or live provider work.

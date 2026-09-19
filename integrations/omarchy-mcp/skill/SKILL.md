@@ -1,13 +1,18 @@
 ---
 name: omarchy-cloud-delegate
-description: Delegate coding work to Thomas's private Omarchy Hermes workers through MCP or HTTP, track asynchronous tasks, retrieve source and visual evidence, and prepare the authorized PR handoff.
+description: Delegate coding work to a configured private Hermes Crabbox worker host through MCP or HTTP, track asynchronous tasks, retrieve source and visual evidence, and prepare the authorized PR handoff.
 ---
 
-# Delegate to Omarchy
+# Delegate to Hermes Crabbox
 
-The execution host must reach Thomas's Tailscale network. MCP endpoint:
-`https://omarchy.tail0d5eb6.ts.net/mcp`. HTTP API origin:
-`https://omarchy.tail0d5eb6.ts.net`. Both use a service-issued Bearer credential.
+Read `CONNECTION.md` beside this skill first when present. Its host, project, and
+environment are selected by the installer. The bundled clients automatically read
+`scripts/connection.json`; explicit `OMARCHY_CLOUD_SERVER`, `OMARCHY_CLOUD_PROJECT`,
+and `OMARCHY_CLOUD_ENVIRONMENT` variables override the installed defaults.
+Without installed settings, ask the operator for those values. Never assume the
+repository maintainer's computer is your worker host. MCP is `<HTTP_ORIGIN>/mcp`.
+The tool-execution machine needs access to that host's Tailscale network.
+Both interfaces use a service-issued Bearer credential.
 Keep it in the host's secret manager or a private token file, never a prompt,
 repository, URL, screenshot or log. There is no public endpoint or automatic
 browser OAuth login. Your MCP client must support Streamable HTTP plus a
@@ -17,7 +22,7 @@ client packaged in `scripts/omarchy_cloud.py` (Python 3.10+).
 Use one dedicated credential per caller. Tasks and inputs belong to that caller;
 another credential cannot automatically observe, continue or retrieve them.
 Required scopes for the complete workflow: submit, observe, retrieve, cancel;
-project: hermes-tasks. Revocation applies to subsequent requests.
+project: the configured project (default `hermes-tasks`). Revocation applies to subsequent requests.
 
 ## Give a useful assignment
 
@@ -37,7 +42,7 @@ python3 scripts/omarchy_cloud.py submit --github OWNER/REPO --ref COMMIT_SHA --g
 python3 scripts/omarchy_cloud.py submit --repo-dir /path/to/repo --goal-file task.txt --idempotency-key my-feature-002
 ```
 
-The client defaults to `~/.config/omarchy-cloud/token` with mode0600. It also
+The client defaults to `~/.config/omarchy-cloud/token` with mode 0600 on macOS/Linux. Native Windows uses the token environment variable. It also
 accepts `OMARCHY_CLOUD_TOKEN` from a secret manager. No provider/GitHub login is
 sent to the worker. GitHub snapshots omit Git history and can omit submodule/LFS
 contents; supply required sources explicitly. Do not pass a path on your host as
@@ -47,7 +52,7 @@ For MCP plus custom files, `prepare_input` reserves an input and returns its
 upload URL. PUT the bytes through HTTP using the same Authorization header and
 the returned upload idempotency key. Wait for ready state, then pass the input
 ID to `submit_task`. Files appear read-only at `/inputs/INPUT_ID`; tell the worker
-how to use/extract them. Maximum input100MiB; large data never belongs in MCP
+how to use/extract them. Maximum input 100 MiB; large data never belongs in MCP
 arguments. The packaged `upload` command performs reservation and upload.
 
 ## Task lifecycle
@@ -55,11 +60,12 @@ arguments. The packaged `upload` command performs reservation and upload.
 1. `submit_task(goal, idempotency_key, input_ids?, acceptance?, workflow?)` queues
    one task and immediately returns session_id and attempt_id. Save both and
    the exact request/key. Single-model is the default; explicit pstack uses the
-   fixed multi-model workflow. Fable quota may currently block pstack; report
+   fixed multi-model workflow when the host explicitly enables it. Check
+   `get_delegation_guide` for available workflows. Provider quota may block pstack; report
    the error and do not silently change models.
 2. `get_task(session_id)` reports status. `get_events(session_id, after)` returns
    a finite progress batch; save next_after. Check periodically when the parent
-   is active, using sensible backoff (for example30-60seconds), not a tight loop.
+   is active, using sensible backoff (for example 30–60 seconds), not a tight loop.
    No automatic parent wake-up is provided. Disconnecting does not cancel work.
 3. `get_results(session_id)` lists artifacts with exact attempt IDs, SHA256,
    lengths and private download URLs. Match them to the attempt you are handing
@@ -75,9 +81,9 @@ key after a timeout; a fresh key can duplicate work. A follow-up with genuinely
 new instructions gets a new key. MCP call cancellation does not substitute for
 cancel_task.
 
-Up to8 tasks can run at once, subject to host admission checks; excess work
-queues. Each run has4GiB RAM,1CPU and an8GiB workspace/state volume, with up
-to1000 model steps and2hours. One container holds its main Hermes agent and any
+Concurrency, per-task resources and execution limits are selected by the host
+operator; excess work queues subject to admission checks. Check the host
+configuration instead of assuming the example deployment limits. One container holds its main Hermes agent and any
 assigned temporary role sessions. Containers stop after completion; result files
 persist through the task service's retention policy. Running desktops and dev
 servers do not remain available afterward. New tasks use the shared SOUL.md
@@ -104,7 +110,7 @@ python3 scripts/pr_evidence.py SESSION_ID --output-dir ./evidence
 ```
 
 Inspect the downloaded files. To publish to an authorized existing PR, repeat
-with `--pr https://github.com/OWNER/REPO/pull/NUMBER --publish`. Requires gh2.99+
+with `--pr https://github.com/OWNER/REPO/pull/NUMBER --publish`. Requires gh 2.99+
 with native --attach support and your GitHub login. Keep the publication receipt;
 after an uncertain upload inspect the PR before retrying. Return the verified
 PR URL and relevant results, or state the exact remaining blocker.
@@ -121,6 +127,6 @@ python3 scripts/omarchy_cloud.py cancel ATTEMPT_ID --idempotency-key my-cancel-0
 ```
 
 Use the included client and MCP tool schemas as the supported interface. VNC desktop access
-currently needs the separate Mini/SSH viewer helper; MCP does not provide a
+currently needs the separate SSH viewer helper; MCP does not provide a
 portable desktop viewer yet. This does not prevent browser work or recording
 inside a task.

@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Routed stage preparation and actual Hermes CLI checkpoint
 
 The new `prepare_child_stage` composes the existing RoleScheduler child assignment, frozen Pstack instructions, identity-bound workspace revision and credential-free routed Hermes launch plan. It does not create another scheduler or lifecycle database. It requires a claimed preparing child, current root/account owner, live parent generation, non-revoked owner, exact frozen provider/model/effort/transport, and a trusted qualification callback binding that route to the execution digest. Nonempty context references are explicitly blocked until their controller materialization path exists; they are never silently omitted.

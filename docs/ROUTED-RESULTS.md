@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Composed routed result phase
 
 `publish_child_results` connects the trusted result APIs after `drive_prepared_child` has fenced inference and stopped/removed the caller. Inputs are controller-owned scheduler/runtime/prepared-stage/spec/quiescence handles, retained worker services, explicit output selectors and known-secret policy. It is not an HTTP or model-callable authority surface.

@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Routed root delivery evidence policy
 
 `routed_delivery_policy.collect_root_delivery_proof(scheduler, root_id, *, expected_generation, selected_revision, forbidden_values=())` reads one qualified, versioned, complete frozen workflow. It returns a frozen `RootDeliveryProof`; it does not create an intent, stop a runtime, release an account, change a root outcome, or promote a session workspace.

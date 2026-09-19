@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # D4 native role-call identity: source and isolated proof
 
 The pinned Hermes synchronous tool path provides the native session ID as a dispatch keyword, but does not provide the native tool-call ID as a handler keyword. A handler can read both IDs from private approval ContextVars during ordinary dispatch. The original unpatched path works in the isolated source fixture, including concurrent calls, but is **insufficient as the production D4 identity contract**: the upstream observability binder fails open on a binding exception and can leave a stale outer tool-call ID visible. No shared Hermes or adapter source was changed by this investigation.

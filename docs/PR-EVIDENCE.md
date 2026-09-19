@@ -1,37 +1,56 @@
-# Hermes screenshots and video for PRs
+# Screenshots and video for pull requests
 
-Deployed to the separate Omarchy laptop on 2026-09-19 UTC. New submissions from both Mac minis default to `hermes-tasks-desktop-soul-v1`. Existing sessions retain their pinned environment. Opt-in routing uses `hermes-tasks-pstack-evidence-v1`; Fable's account quota still blocks full routed execution.
+The desktop worker image includes Chromium, FFmpeg, agent-browser, its attributed
+upstream skill, and the `cloud-evidence:pr-evidence` skill. The working Hermes
+session captures evidence in its own task workspace. Supported temporary pstack
+role sessions share that workspace; their existing tool permissions still apply.
 
-Each task container includes native agent-browser 0.38.1, Chromium, FFmpeg, the upstream browser skill, and the shared `cloud-evidence:pr-evidence` skill. The working Hermes session captures media itself. Temporary pstack role sessions share the same container/workspace and discover the same skill; existing read-only planning/review tool permissions remain unchanged.
+Ask for relevant before/after screenshots and a short interaction recording.
+Save them with a schema-version-1 manifest under `/workspace/pr-evidence/` so
+the task artifact API can export them. Workers prepare evidence and PR notes;
+GitHub publication happens on the calling agent's computer.
 
-Ask Hermes to capture the relevant before/after UI and interaction video. Files and a schema-version-1 manifest go in `/workspace/pr-evidence/` and are exported through the existing task artifact API. No GitHub login enters the container.
+## Retrieve and inspect
 
-On either delegating Mini:
+From the installed caller skill directory:
 
 ```sh
-~/.local/bin/omarchy-cloud-evidence SESSION_ID --output-dir ./pr-evidence-downloads
+python3 scripts/pr_evidence.py SESSION_ID --output-dir ./pr-evidence-downloads
 ```
 
-Inspect the downloaded media and generated comment. When PR publication is authorized, repeat with the exact target:
+The helper uses the same configured server as the HTTP client, validates artifact
+hashes/lengths, and prepares a local comment with the selected media. Inspect the
+actual files and generated comment. Preparation does not contact GitHub.
+
+## Publish to an authorized PR
+
+Read that repository's contribution instructions and PR template first. When
+publication to a specific PR is authorized:
 
 ```sh
-~/.local/bin/omarchy-cloud-evidence SESSION_ID --output-dir ./pr-evidence-downloads --pr https://github.com/OWNER/REPO/pull/NUMBER --publish
+python3 scripts/pr_evidence.py SESSION_ID --output-dir ./pr-evidence-downloads \
+  --pr https://github.com/OWNER/REPO/pull/NUMBER --publish
 ```
 
-The helper uses the parent's GitHub login and native `gh pr comment --attach`. Both Minis now have GitHub CLI 2.101.0; Omarchy already had it. Publication uses a receipt to prevent blind duplicate retries. Preparing media never contacts GitHub.
+This requires the caller's GitHub login and a GitHub CLI with native
+`gh pr comment --attach` support. Credentials are not sent to the worker.
+Retain the publication receipt; after an uncertain response, inspect the PR before
+retrying. Returning a prepared comment does not mean an upload happened.
 
-## Evidence and limits
+## Evidence and limitations
 
-Actual native Hermes/Grok job `063c4634-5977-4e3d-ac66-b4b63b210d43`, attempt `31c68208-2ba6-492b-9792-225dea670ddb`, completed with exit 0. It created a small browser counter and captured two PNGs, a 2.1-second H.264 MP4 and a contact sheet. Parent API downloads matched SHA256/length metadata. Visual inspection of screenshots and sampled video frames confirmed 0 -> 1 -> 0. The worker's sparse contact sheet omitted the intermediate 1; the full video contains it.
+The initial reference deployment completed a synthetic counter task and returned
+two PNGs, a short MP4 and a contact sheet. Parent-side retrieval and visual
+inspection confirmed the interaction. One selected screenshot appears in the
+README. That recorded result does not establish the same behavior for a new
+host image, full pstack execution, concurrent load, or attachment publication to
+a real PR. Validate those separately when they are part of the assignment.
 
-The task container stopped and was removed; per-task credential/request files were removed. API, worker and cloudd remained active. Receipts and downloaded media are under `evidence/pr-evidence/`. The four focused helper/skill/guest/child test files passed 89 tests. Installed parser readbacks on both Minis select the new single-model environment.
+## Upstream components
 
-Actual attachment publication to a real PR has not been exercised because no target PR was supplied. Broad environment qualification remains false; this result establishes this capture/download path, not full routed execution or concurrency qualification.
+The agent-browser core skill and its Apache license are retained in
+`integrations/hermes-pr-evidence/skills/agent-browser/`. See
+[the attribution inventory](../THIRD_PARTY_NOTICES.md) and [build inputs](../BUILDING.md)
+for exact revisions and binary hashes. Original integration code is MIT licensed.
 
-## Pinned dependencies
-
-agent-browser v0.38.1 upstream source: `aff6125c023b810ea3f2e5deec5379e9a4270bdc`; Linux x64 binary SHA256 `5100149a1903211c889de4e545bf36d90803740cea4f99aa22651649f9205ea1`. Upstream core skill and Apache license are retained in `integrations/hermes-pr-evidence/skills/agent-browser/`.
-
-Image digests, environment manifests and operator backup path are recorded in `evidence/pr-evidence/activation.json`. Activation leaves existing versions available. Resource limits and the maximum of eight concurrent tasks are unchanged.
-
-Shared worker identity: new SOUL-enabled profiles install the complete cloud worker identity and repository PR rules at each private Hermes home. See `WORKER-SOUL.md` for the current images and loading proof.
+[Worker instructions](WORKER-SOUL.md) · [Caller setup](QUICKSTART.md)

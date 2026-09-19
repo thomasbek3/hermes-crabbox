@@ -1,0 +1,132 @@
+#!/usr/bin/env python3
+"""Disposable numeric UID qualification; no host users, real credentials or deployment."""
+
+# Archived one-off operation; use the supported host installer instead.
+raise SystemExit('Archived operation is disabled. See docs/AGENT-SETUP.md for supported installation.')
+
+from pathlib import Path
+import datetime,hashlib,json,shlex,subprocess,uuid
+
+root=Path(__file__).resolve().parents[2]
+stamp=datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ')
+base=root/'evidence'/('relay-distinct-uid-'+stamp)
+owner='uidproof-'+uuid.uuid4().hex[:12];caller='cwb-'+owner;prep=caller+'-prep';volume=caller+'-source'
+image='sha256:5a03c9d2d1fc20683029c47683a3b0470ad2d7ce79eeb43ced1bdfba10770693'
+ssh=['ssh','-o','BatchMode=yes','-o','ConnectTimeout=10','operator@worker.example.invalid']
+def command(argv,*,input=None,timeout=20,check=True):
+    result=subprocess.run(ssh+[shlex.join(argv)],input=input,capture_output=True,text=True,timeout=timeout)
+    if check and result.returncode:raise RuntimeError('remote command failed: '+result.stderr[-1000:])
+    return result
+
+def docker(*args,**kwargs):return command(['/usr/bin/docker',*args],**kwargs)
+
+paths={'cloudworkbench/__init__.py':None,'cloudworkbench/inference_relay.py':'src/cloudworkbench/inference_relay.py','cloudworkbench/inference_service.py':'src/cloudworkbench/inference_service.py','relay_process.py':'scripts/qualify-relay-uid-process.py','tool_probe.py':'scripts/qualify-relay-tool-uid.py'}
+sources={target:root.joinpath(source).read_text() if source else '' for target,source in paths.items()}
+hashes={target:hashlib.sha256(source.encode()).hexdigest() for target,source in sources.items()}
+base.with_suffix('.source-snapshot.json').write_text(json.dumps({'source_paths':paths,'hashes':hashes,'sources':sources},indent=2)+'\n')
+receipt={'owner':owner,'host':'archived-worker.invalid','caller':caller,'prep':prep,'source_volume':volume,'image':image,'source_hashes':hashes,'commands':[],'synthetic_only':True,'scope_constraints':{'real_credentials':'excluded by source, synthetic configuration and mount inventory; not a host-wide credential audit','provider_calls':'synthetic callbacks only, network none; no provider execution path in fixture','live_service_mutations':'not in command plan'},'not_exercised':['DispatchContext execute_request callback','production UID provisioning','Hermes plugins and tirith (disabled in fixture)','hostile probes via actual Hermes tool invocation (Python hostile probes run as same numeric UID)','resource exhaustion resistance; limits are shared, relay can be starved','ptrace attach and shared tmp access'],'passed':False}
+created_containers=[];volume_created=False
+def host_snapshot():
+    return {'containers':docker('ps','-a','--no-trunc','--format','{{.ID}} {{.Names}} {{.Status}}').stdout.splitlines(),
+            'volumes':docker('volume','ls','--format','{{.Name}}').stdout.splitlines(),
+            'services':command(['systemctl','list-units','--all','--no-pager','--no-legend','cloud-workbench*']).stdout.splitlines(),
+            'passwd_sha256':command(['sha256sum','/etc/passwd']).stdout.split()[0]}
+
+try:
+    host=command(['hostname']).stdout.strip();uid=command(['id','-u']).stdout.strip()
+    if host!='archived-worker.invalid' or uid!='1000':raise RuntimeError('wrong target')
+    receipt['host_before']=host_snapshot()
+    receipt['preflight']={'hostname':host,'ssh_uid':uid,'memory':command(['free','-m']).stdout,'disk':command(['df','-Pm','/var/lib/docker']).stdout}
+    available=int(command(['awk','/MemAvailable/{print $2}','/proc/meminfo']).stdout.strip())
+    disk_fields=command(['df','-Pk','/var/lib/docker']).stdout.splitlines()[-1].split()
+    assert available>6*1024*1024 and int(disk_fields[3])>5*1024*1024
+    assert docker('image','inspect',image,'--format','{{.Id}}').stdout.strip()==image
+    docker('volume','create','--label','io.cloudworkbench.probe-owner='+owner,volume);volume_created=True
+    if json.loads(docker('volume','inspect',volume).stdout)[0]['Labels'].get('io.cloudworkbench.probe-owner')!=owner:raise RuntimeError('unexpected source volume owner')
+    stage='''import hashlib,json,os,pathlib
+sources=%r
+hashes=%r
+root=pathlib.Path('/proof')
+for name,source in sources.items():
+ path=root/name;path.parent.mkdir(parents=True,exist_ok=True);path.parent.chmod(0o755)
+ path.write_text(source);path.chmod(0o644)
+ assert path.stat().st_uid==0 and hashlib.sha256(path.read_bytes()).hexdigest()==hashes[name]
+(root/'writable-probe').mkdir();(root/'writable-probe').chmod(0o777)
+(root/'manifest.json').write_text(json.dumps(hashes));(root/'manifest.json').chmod(0o644)
+print(json.dumps({'uid':os.getuid(),'hashes':hashes}))
+'''%(sources,hashes)
+    prep_argv=['run','--name',prep,'--label','io.cloudworkbench.probe-owner='+owner,'--network','none','--read-only','--user','0:0','--cpus','.25','--memory','128m','--memory-swap','128m','--pids-limit','32','--cap-drop','ALL','--security-opt','no-new-privileges','--mount','type=volume,src='+volume+',dst=/proof','--entrypoint','/opt/hermes/venv/bin/python','-i',image,'-']
+    created_containers.append(prep);receipt['commands'].append(prep_argv)
+    receipt['source_preparation']=json.loads(docker(*prep_argv,input=stage,timeout=25).stdout)
+    init="import signal,time,sys; signal.signal(signal.SIGTERM,lambda *args:sys.exit(0)); exec('while True: time.sleep(1)')"
+    run_argv=['run','-d','--name',caller,'--label','io.cloudworkbench.probe-owner='+owner,'--network','none','--read-only','--user','1002:1002','--cpus','1.4','--memory','3008m','--memory-swap','3008m','--pids-limit','352','--cap-drop','ALL','--security-opt','no-new-privileges','--tmpfs','/tmp:rw,nosuid,nodev,size=256m,mode=1777','--tmpfs','/run/relay:rw,nosuid,nodev,noexec,size=32m,uid=1001,gid=1001,mode=0700','--tmpfs','/run/tool:rw,nosuid,nodev,size=128m,uid=1000,gid=1000,mode=0700','--mount','type=volume,src='+volume+',dst=/proof,readonly','--entrypoint','/opt/hermes/venv/bin/python',image,'-c',init]
+    created_containers.append(caller);receipt['commands'].append(run_argv)
+    container_id=docker(*run_argv).stdout.strip();receipt['container_id']=container_id
+    exec_argv=['exec','-d','--user','1001:1001','-e','PYTHONPATH=/proof:/opt/hermes/source','-e','PYTHONDONTWRITEBYTECODE=1','-e','HOME=/run/relay','-e','SYNTHETIC_RELAY_MARKER=not-a-provider-credential',caller,'/opt/hermes/venv/bin/python','/proof/relay_process.py']
+    receipt['commands'].append(exec_argv);docker(*exec_argv)
+    ready_code="import json,pathlib,time\np=pathlib.Path('/run/relay/ready.json')\nfor _ in range(100):\n if p.exists():break\n time.sleep(.1)\nprint(p.read_text())"
+    ready=json.loads(docker('exec','--user','1001:1001',caller,'/opt/hermes/venv/bin/python','-c',ready_code,timeout=15).stdout)
+    receipt['relay']=ready
+    probe_argv=['exec','--user','1000:1000','-e','PYTHONPATH=/proof:/opt/hermes/source','-e','PYTHONDONTWRITEBYTECODE=1',caller,'/opt/hermes/venv/bin/python','/proof/tool_probe.py',str(ready['pid'])]
+    receipt['commands'].append(probe_argv)
+    result=docker(*probe_argv,timeout=55,check=False)
+    base.with_suffix('.tool-stdout.json').write_text(result.stdout);base.with_suffix('.tool-stderr.txt').write_text(result.stderr)
+    receipt['tool_exit']=result.returncode
+    if result.returncode:raise RuntimeError('tool qualification failed; preserved stdout/stderr')
+    tool=json.loads(result.stdout);receipt['tool']=tool
+    readback_code="import hashlib,json,os,pathlib\np=pathlib.Path('/proof');m=json.loads((p/'manifest.json').read_text());assert all(hashlib.sha256((p/f).read_bytes()).hexdigest()==h for f,h in m.items());os.kill("+str(ready['pid'])+",0);print(json.dumps({'source_unchanged':True,'relay_still_alive':True,'requests':json.loads(pathlib.Path('/run/relay/requests.json').read_text()),'journal_mode':oct(pathlib.Path('/run/relay/relay.db').stat().st_mode&0o777)}))"
+    receipt['readback']=json.loads(docker('exec','--user','1001:1001',caller,'/opt/hermes/venv/bin/python','-c',readback_code).stdout)
+    metadata=json.loads(docker('inspect',caller).stdout)[0]
+    if metadata['Id']!=container_id:raise RuntimeError('caller container identity changed')
+    receipt['container']={k:metadata[k] for k in ('Id','Image','State','Mounts','HostConfig')}
+    receipt['processes']=docker('top',caller,'-eo','pid,uid,comm').stdout
+    assert tool['uid']==1000 and ready['uid']==1001 
+    for state in (tool['status'],ready['status']):assert int(state['CapEff'],16)==0 and state['NoNewPrivs']=='1'
+    for measured in [tool['cgroup_measurement']]+[r['cgroup_measurement'] for r in receipt['readback']['requests']]:
+        assert measured['cpu.max'].strip()=='140000 100000'
+        assert int(measured['memory.max'])==3008*1024*1024 and int(measured['pids.max'])==352
+        members=[int(value) for value in measured['cgroup.procs'].split()]
+        assert ready['pid'] in members and tool['hermes_pid'] in members
+    host_config=metadata['HostConfig']
+    assert host_config['NetworkMode']=='none' and host_config['ReadonlyRootfs'] and host_config['NanoCpus']==1400000000 and host_config['Memory']==3008*1024*1024 and host_config['PidsLimit']==352
+    mounts=metadata['Mounts'];assert len(mounts)==1 and mounts[0]['Type']=='volume' and mounts[0]['Name']==volume and not mounts[0]['RW']
+    assert ready['journal_uid']==1001 and ready['journal_mode']=='0o600' and receipt['readback']['journal_mode']=='0o600'
+    assert len(receipt['readback']['requests'])==2 and receipt['readback']['requests'][-1]['tool_result_received']
+    receipt.update(passed=True,resource_accounting='Both UIDs measured cgroup.procs containing actual Hermes and relay PIDs plus cpu.max/memory.max/pids.max. Shared1.4CPU/3008MiB/352PID; no resource exhaustion or availability resilience claim',production_uid_provisioned=False)
+except Exception as exc:
+    receipt['error']={'type':type(exc).__name__,'message':str(exc)[:2000]}
+    receipt['passed']=False
+finally:
+    cleanup=[]
+    for name in reversed(created_containers):
+        try:
+            inspected=docker('inspect',name,check=False)
+            if inspected.returncode:
+                cleanup.append({'name':name,'inspect_failed':True,'error':inspected.stderr[-500:]});continue
+            obj=json.loads(inspected.stdout)[0]
+            if obj['Config']['Labels'].get('io.cloudworkbench.probe-owner')!=owner:
+                cleanup.append({'name':name,'owner_mismatch_refused':True});continue
+            removed=docker('rm','-f',obj['Id'],check=False);cleanup.append({'name':name,'id':obj['Id'],'remove_exit':removed.returncode})
+        except Exception as exc:cleanup.append({'name':name,'cleanup_error':type(exc).__name__+': '+str(exc)[:500]})
+    if volume_created:
+        try:
+            obj=json.loads(docker('volume','inspect',volume).stdout)[0]
+            if obj['Labels'].get('io.cloudworkbench.probe-owner')!=owner:
+                cleanup.append({'volume':volume,'owner_mismatch_refused':True})
+            else:
+                result=docker('volume','rm',volume,check=False);cleanup.append({'volume':volume,'remove_exit':result.returncode})
+        except Exception as exc:cleanup.append({'volume':volume,'cleanup_error':type(exc).__name__+': '+str(exc)[:500]})
+    receipt['cleanup']={'actions':cleanup,'complete':False}
+    try:
+        remaining=docker('ps','-aq','--filter','label=io.cloudworkbench.probe-owner='+owner).stdout.splitlines()
+        volumes=docker('volume','ls','-q','--filter','label=io.cloudworkbench.probe-owner='+owner).stdout.splitlines()
+        receipt['cleanup'].update(containers_remaining=remaining,volumes_remaining=volumes,complete=not remaining and not volumes and all(x.get('remove_exit')==0 for x in cleanup))
+        receipt['host_after']=host_snapshot()
+        before=receipt.get('host_before',{});after=receipt['host_after']
+        receipt['host_observation_diff']={key:{'before_only':sorted(set(before.get(key,[]))-set(after[key])),'after_only':sorted(set(after[key])-set(before.get(key,[])))} for key in ('containers','volumes','services')}
+        receipt['host_passwd_unchanged']=before.get('passwd_sha256')==after['passwd_sha256']
+        receipt['observation_limit']='Concurrent work can change host snapshots; snapshots do not attribute changes or prove absence of all transient mutations.'
+    except Exception as exc:receipt['postflight_error']={'type':type(exc).__name__,'message':str(exc)[:500]}
+    base.with_suffix('.json').write_text(json.dumps(receipt,indent=2)+'\n')
+print(json.dumps({'receipt':str(base.relative_to(root))+'.json','passed':receipt['passed'],'cleanup':receipt['cleanup']},indent=2))
+raise SystemExit(0 if receipt['passed'] and receipt['cleanup']['complete'] else 1)

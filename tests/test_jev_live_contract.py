@@ -1,14 +1,17 @@
 """Replay the three authorized synthetic replies; this never calls the API."""
 import importlib.util
 import json
+import pytest
 from pathlib import Path
 from cloudworkbench.workflow_routing import WORKFLOWS,payload,parse_assessment
 
 ROOT=Path(__file__).resolve().parents[1]
 
 def test_captured_jev_replies_match_contract_and_requested_workflows():
-    spec=importlib.util.spec_from_file_location('jev_qualification',ROOT/'scripts/qualify-jev-workflow-retest.py')
+    spec=importlib.util.spec_from_file_location('jev_qualification',ROOT/'scripts/legacy/qualify-jev-workflow-retest.py')
     module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+    if not (ROOT/'evidence/jev-workflow-live-authorized-three.jsonl').is_file():
+        pytest.skip('Optional captured live Jev responses are not distributed')
     rows=[json.loads(x) for x in (ROOT/'evidence/jev-workflow-live-authorized-three.jsonl').read_text().splitlines()]
     results=[r for r in rows if r['kind']=='result']
     assert len([r for r in rows if r['kind']=='intent'])==len(results)==3

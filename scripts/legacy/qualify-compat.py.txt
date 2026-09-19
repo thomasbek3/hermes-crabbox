@@ -1,0 +1,44 @@
+"""Read-only v2 compatibility checks; run under the existing named client identity."""
+
+# Archived one-off operation; use the supported host installer instead.
+raise SystemExit('Archived operation is disabled. See docs/AGENT-SETUP.md for supported installation.')
+
+import hashlib
+import json
+from pathlib import Path
+import subprocess
+import sys
+import datetime
+import sqlite3
+from cloudworkbench.cli import Client
+
+config_path=Path(sys.argv[1]);sid=sys.argv[2]
+config=json.loads(config_path.read_text())
+client=Client(config['server'],Path(config['token_file']))
+checks={};receipts={}
+def audit():
+    with sqlite3.connect('file:/var/lib/cloud-workbench/control/state.db?mode=ro',uri=True) as db:
+        state={table:db.execute('SELECT COUNT(*) FROM '+table).fetchone()[0] for table in ('sessions','attempts','events','artifacts')}
+        identity=db.execute('SELECT name FROM clients WHERE token_hash=?',(hashlib.sha256(client.token.encode()).hexdigest(),)).fetchone()
+    state['legacy_pid']=subprocess.check_output(['systemctl','show','cloudd','-p','MainPID','--value'],text=True).strip()
+    state['principal_name']=identity[0] if identity else None
+    return state
+before=audit()
+def call(name,*args,expected=0):
+    result=subprocess.run([sys.executable,'-m','cloudworkbench.compat','--config',str(config_path),*args],capture_output=True,timeout=45)
+    checks[name]=result.returncode==expected
+    receipts[name]={'exit_code':result.returncode,'stdout_bytes':len(result.stdout),'stdout_sha256':hashlib.sha256(result.stdout).hexdigest()}
+    return result.stdout
+status=json.loads(call('status','status',sid));checks['verified_state']=status['state']=='completed' and status['outcome']=='verified'
+call('list','ls');call('log','log',sid);call('wait_terminal','wait',sid,'--max-seconds','5')
+artifacts=client.json('GET',f'/sessions/{sid}/artifacts')['artifacts']
+artifact=next(a for a in artifacts if a['attempt_id']==status['id'] and a['path']=='booking.py')
+raw=call('file','file',sid,'booking.py');checks['file_hash_matches_api']=hashlib.sha256(raw).hexdigest()==artifact['sha256']
+call('rm_requires_explicit_intent','rm',sid,expected=1)
+call('rm_confirm_unsupported','rm',sid,'--confirm',expected=1)
+after=audit();checks['state_counters_and_legacy_unchanged']=before==after
+checks['named_principal']=before['principal_name']=='example caller'
+checks['https_origin']=config['server']=='https://worker.example.invalid'
+source=Path(__file__).read_bytes()
+print(json.dumps({'host':'archived-worker.invalid','at':datetime.datetime.now(datetime.timezone.utc).isoformat(),'session_id':sid,'before':before,'after':after,'origin':config['server'],'driver_sha256':hashlib.sha256(source).hexdigest(),'checks':checks,'receipts':receipts,'passed':all(checks.values())},indent=2))
+assert all(checks.values())

@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Bounded prior-stage context
 
 `load_stage_context(scheduler, child_id, *, expected_generation, forbidden_values)` returns immutable `StageContext(canonical_json, text, digest, assignment_sha256, input_revision_sha256)`. The text explicitly marks the contents as untrusted evidence, never instructions, tool permissions, verification authority or workflow policy.

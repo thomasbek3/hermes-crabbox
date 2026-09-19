@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Stopped-workspace export protocol
 
 `routed_export_protocol` supplies a standalone collector program and independent controller decoder. It does not start Docker, establish quiescence, mount storage, create host files, register artifacts or authorize a verification outcome. The runtime must bind the exact stopped attempt workspace read-only at `/workspace`, execute the pinned program as tool UID1000 with no network/credentials/host socket, and confirm collector cleanup before using the returned bytes.

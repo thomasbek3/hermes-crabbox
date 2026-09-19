@@ -12,7 +12,9 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import socket
+import argparse
+import pwd
+import grp
 import stat
 import sys
 import time
@@ -21,7 +23,7 @@ import urllib.parse
 import urllib.request
 import uuid
 
-AUTH_DIR = Path('/var/lib/cloud-workbench/auth/native-login-20260918/grok/.grok')
+AUTH_DIR = Path('/var/lib/cloud-workbench/auth/grok/.grok')
 ISSUER = 'https://auth.x.ai'
 CLIENT_ID = 'b1a00492-073a-47ea-816f-4c329264a828'
 NAMESPACE = ISSUER + '::' + CLIENT_ID
@@ -65,18 +67,20 @@ def identity(info):
     return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns)
 
 
-def directory():
+def directory(auth_dir=AUTH_DIR):
+    if not auth_dir.is_absolute() or '..' in auth_dir.parts:
+        raise RefreshError('auth_directory_must_be_absolute')
     fd = os.open('/', os.O_RDONLY | os.O_DIRECTORY)
     try:
-        for part in AUTH_DIR.parts[1:]:
+        for part in auth_dir.parts[1:]:
             child = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=fd)
             os.close(fd)
             fd = child
             info = os.fstat(fd)
-            if info.st_uid not in (0, 959) or info.st_mode & 0o022:
+            if info.st_uid not in (0, os.geteuid()) or info.st_mode & 0o022:
                 raise RefreshError('auth_directory_unsafe')
         info = os.fstat(fd)
-        if info.st_uid != 959 or stat.S_IMODE(info.st_mode) != 0o700:
+        if info.st_uid != os.geteuid() or stat.S_IMODE(info.st_mode) != 0o700:
             raise RefreshError('auth_directory_unsafe')
         return fd
     except BaseException:
@@ -93,8 +97,8 @@ def read(parent, name, *, optional=False):
         raise RefreshError('auth_missing') from None
     try:
         before = os.fstat(fd)
-        if (not stat.S_ISREG(before.st_mode) or before.st_uid != 959
-                or before.st_gid != 960 or stat.S_IMODE(before.st_mode) != 0o600
+        if (not stat.S_ISREG(before.st_mode) or before.st_uid != os.geteuid()
+                or before.st_gid != os.getegid() or stat.S_IMODE(before.st_mode) != 0o600
                 or before.st_nlink != 1 or not 0 < before.st_size <= LIMIT):
             raise RefreshError('auth_file_unsafe')
         chunks = []
@@ -243,17 +247,22 @@ def recover(parent, lock_fd, current):
     raise RefreshError('refresh_outcome_unknown')
 
 
-def run():
-    if socket.gethostname() != 'omarchy' or os.geteuid() != 959 or os.getegid() != 960:
+def run(auth_dir=AUTH_DIR, *, worker_user='cloud-worker', worker_group='cloud-workbench'):
+    try:
+        worker_uid = pwd.getpwnam(worker_user).pw_uid
+        worker_gid = grp.getgrnam(worker_group).gr_gid
+    except KeyError:
+        raise RefreshError('dedicated_worker_account_missing') from None
+    if worker_uid == 0 or os.geteuid() != worker_uid or os.getegid() != worker_gid:
         raise RefreshError('dedicated_worker_required')
     os.umask(0o077)
-    parent = directory()
+    parent = directory(Path(auth_dir))
     lock_fd = None
     try:
         lock_fd = os.open(LOCK, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK,
                           0o600, dir_fd=parent)
         info = os.fstat(lock_fd)
-        if (not stat.S_ISREG(info.st_mode) or info.st_uid != 959 or info.st_nlink != 1
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid() or info.st_nlink != 1
                 or stat.S_IMODE(info.st_mode) & 0o022):
             raise RefreshError('auth_lock_unsafe')
         try:
@@ -308,8 +317,13 @@ def run():
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--auth-dir', type=Path, default=AUTH_DIR)
+    parser.add_argument('--worker-user', default='cloud-worker')
+    parser.add_argument('--worker-group', default='cloud-workbench')
+    args = parser.parse_args()
     try:
-        print(json.dumps({'status': run()}))
+        print(json.dumps({'status': run(args.auth_dir, worker_user=args.worker_user, worker_group=args.worker_group)}))
     except RefreshError as error:
         print(json.dumps({'status': str(error)}))
         sys.exit(1)

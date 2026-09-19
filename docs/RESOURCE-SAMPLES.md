@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Bounded resource observations
 
 Status: sampler and coordinator are now integrated in local Runner/Store/result-bundle source. This integration has been qualified with a disposable real-Docker Runner on Omarchy, but **has not been deployed to installed services**. The earlier sampler proof remains separately scoped. Historical attempts without controller observations remain explicitly unknown.

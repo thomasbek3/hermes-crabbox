@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Routed worker observation publication
 
 `routed_publication.py` is a local controller composition component. It does not install an API, start a process, migrate a schema, or publish a protected success. A completed worker result remains `worker_reported`; verification, gate approval and revision promotion remain false.

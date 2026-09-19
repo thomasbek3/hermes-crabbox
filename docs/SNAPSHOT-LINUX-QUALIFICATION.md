@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Synthetic Linux snapshot qualification — passed
 
 Parent execution of frozen v5 passed on Omarchy: `evidence/snapshot-linux-v5-20260918.json`.
@@ -106,7 +111,7 @@ Only after parent inspection and explicit decision to execute the isolated proof
   --prepared evidence/snapshot-linux-prepared-candidate-v5.json
 ```
 
-The remote branch uses only `thomas@100.83.74.92` and
+The remote branch uses only `operator@worker.example.ts.net` and
 `sudo -n /opt/cloud-workbench/.venv/bin/python`. `--prepare` never invokes SSH.
 No mode defaults to execution. Existing artifact paths are not overwritten. The
 parent should inspect any failed receipt and its exact fixture namespace before

@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Local preview gateway foundation
 
 This checkpoint adds `preview_gateway.py`, a standalone ASGI HTTP application and a WebSocket lifecycle guard around the private registry. It is provider-neutral: Hermes or another trusted worker integration supplies the same registered backend metadata. No API mount, Store integration, server entrypoint, listener, DNS/TLS, Docker network, environment manifest, dashboard link or deployment is added. Existing running services are unchanged.

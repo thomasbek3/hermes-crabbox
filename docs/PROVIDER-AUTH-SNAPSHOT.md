@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Dedicated native credential snapshots
 
 The subsequent [Docker lifecycle composition](SNAPSHOT-PROVIDER-DOCKER.md) now

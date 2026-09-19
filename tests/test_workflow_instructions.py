@@ -1,14 +1,16 @@
 from pathlib import Path
+import os
 import pytest
 from cloudworkbench.workflow_instructions import bind_instructions, load_stage_instructions, STAGE_BOUNDARY
 from cloudworkbench.workflow_routing import WORKFLOWS,WorkflowError
 
-ROOT=Path(__file__).resolve().parents[2]/'work/hermes-pstack-image-context/pstack'
+PSTACK_SOURCE = os.environ.get('CWB_PSTACK_SOURCE')
 
 @pytest.mark.parametrize('workflow',list(WORKFLOWS))
 def test_pinned_pstack_material_exists_for_every_stage(workflow):
-    if not ROOT.is_dir():pytest.skip('Pinned image build context not available')
-    refs=bind_instructions(workflow,ROOT)
+    if not PSTACK_SOURCE or not Path(PSTACK_SOURCE).is_dir():
+        pytest.skip('Set CWB_PSTACK_SOURCE for optional pinned workflow material integration')
+    refs=bind_instructions(workflow,Path(PSTACK_SOURCE))
     assert [r['step_id'] for r in refs]==[s.id for s in WORKFLOWS[workflow].steps]
     assert all(len(r['sha256'])==64 and r['relative_path'].startswith('skills/') for r in refs)
 

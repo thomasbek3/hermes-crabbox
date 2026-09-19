@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Proposed D9: response relay and disposable provider requests
 
 Status: reviewed design correction; Fable REVISE independently dispositioned below. Not implemented or deployed yet. Scope is a concrete correction to D1 lifecycle, not reduced provider isolation or a release exception.

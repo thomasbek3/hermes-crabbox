@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Supervised failed-call recovery
 
 The wrapper closes and joins its cancellation observer before considering recovery. A stopped observer does not itself prove runtime cleanup. Missing or stuck observer shutdown fences this wrapper and quarantines the reservation; it never invokes recovery.

@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Result bundles
 
 This is a next-checkpoint source feature. It is not part of the frozen auth/retention rollout snapshot and has not been deployed by this unit.
@@ -45,7 +50,7 @@ The ETag checks transport consistency with this authenticated server; it is not 
 
 ```sh
 .venv/bin/python scripts/qualify-result-bundle.py \
-  --server https://omarchy.tail0d5eb6.ts.net \
+  --server https://worker.example.ts.net \
   --token-file /private/owner-token \
   --other-owner-token-file /private/other-owner-token \
   --excluded-project-token-file /private/project-excluded-token \

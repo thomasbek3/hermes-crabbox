@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Next bounded native Hermes / supervised provider proof
 
 Preparation only. Do not execute until the runtime adapter corrections and mandatory BudgetAuthority integration have a parent-approved frozen source set. The completed `supervised-provider-linux-20260918T010306Z` execution predates that delta and cannot qualify it.

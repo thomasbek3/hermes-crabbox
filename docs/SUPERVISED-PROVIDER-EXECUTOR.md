@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Supervised provider execution
 
 `SupervisedProviderExecutor` wraps the real `ProviderExecutor` and requires its `ProviderDispatch` to have a configured durable inference budget. Configure the Docker adapter's `cancel_check` with this wrapper's `cancel_check` before invoking it. The wrapper delegates authorization to the underlying executor.

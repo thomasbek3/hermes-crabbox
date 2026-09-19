@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Control-plane scheduler checkpoint
 
 Owned checkpoint completed locally;404tests passed in14.19sec,3 existingdependency/pytestmetadatawarnings. evidence/scheduler-workflow-final-tests.xml/log and final-binding.json containexactsource/testhashes; frozenownedfiles in evidence/scheduler-workflow-final-source. No liveDB/schema/service/runtime/provider operations. No active commands remain.

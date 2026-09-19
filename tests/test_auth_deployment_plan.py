@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 import pytest
 
-spec=importlib.util.spec_from_file_location('auth_deploy',Path(__file__).parents[1]/'scripts/deploy-auth-checkpoint.py')
+spec=importlib.util.spec_from_file_location('auth_deploy',Path(__file__).parents[1]/'scripts/legacy/deploy-auth-checkpoint.py')
 deploy=importlib.util.module_from_spec(spec);spec.loader.exec_module(deploy)
 
 
@@ -140,7 +140,7 @@ def test_local_build_reference_is_checked_against_exact_image_id(monkeypatch):
 
 
 def test_qualified_resume_preserves_image_registry_and_source_boundaries():
-    prior={'host':'omarchy','passed':False,'execute':True,'stage':'credential_state',
+    prior={'host':'archived-worker.invalid','passed':False,'execute':True,'stage':'credential_state',
            'services_started':[],'stopped_services':[],'checkpoint':'test','base_image_id':'base',
            'old_image_id':'old','config_sha256_before':{'worker':'w','api':'a'},'legacy_pid_before':'1',
            'new_image_id':'sha256:'+'a'*64,

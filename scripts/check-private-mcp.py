@@ -1,16 +1,18 @@
 """Read-only live MCP smoke. Credential is read privately; never emitted."""
-import asyncio, hashlib, json, os
+import argparse, asyncio, hashlib, json, os
 from pathlib import Path
 import sys
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'integrations/omarchy-cloud/scripts'))
-from omarchy_cloud import Client
+from omarchy_cloud import Client, connection_defaults
 import httpx
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 
 async def main():
-    origin='https://omarchy.tail0d5eb6.ts.net'
-    secret=Client(origin,Path.home()/'.config/omarchy-cloud/token').token
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--server', default=connection_defaults()['server'])
+    origin=parser.parse_args().server
+    secret=Client(origin,Path(os.environ.get('OMARCHY_CLOUD_TOKEN_FILE','~/.config/omarchy-cloud/token')).expanduser()).token
     async with streamablehttp_client(origin+'/mcp',headers={'Authorization':'Bearer '+secret}) as (read,write,_):
         async with ClientSession(read,write) as session:
             init=await session.initialize()

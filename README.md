@@ -16,12 +16,13 @@
 
 <p align="center">
   <a href="docs/QUICKSTART.md"><img src="https://img.shields.io/badge/Connect%20an%20agent-7de0c3?style=for-the-badge&labelColor=121b25" alt="Connect an agent"></a>
-  <a href="BUILDING.md#set-up-a-worker-computer"><img src="https://img.shields.io/badge/Set%20up%20a%20worker%20computer-a2b2c4?style=for-the-badge&labelColor=121b25" alt="Set up a worker computer"></a>
+  <a href="docs/HOST-INSTALL.md"><img src="https://img.shields.io/badge/Set%20up%20a%20worker%20computer-a2b2c4?style=for-the-badge&labelColor=121b25" alt="Set up a worker computer"></a>
 </p>
 
 <p align="center">
+  <a href="docs/AGENT-SETUP.md"><strong>Agent setup</strong></a> ·
   <a href="docs/README.md">Documentation</a> ·
-  <a href="https://github.com/thomasbek3/hermes-crabbox/releases/tag/v0.1.0-preview.1">Downloads</a> ·
+  <a href="https://github.com/thomasbek3/hermes-crabbox/releases/tag/v0.1.0-preview.2">Downloads</a> ·
   <a href="docs/ARCHITECTURE.md">How it works</a> ·
   <a href="THIRD_PARTY_NOTICES.md">Credits</a>
 </p>
@@ -76,18 +77,29 @@ review. [Screenshots, recordings, and PR evidence →](docs/PR-EVIDENCE.md)
 | What you want to do | Start here |
 | --- | --- |
 | Give tasks to an existing worker computer | [Connect an agent](docs/QUICKSTART.md) — requires network access and a caller credential. |
-| Run workers on your own spare computer | [Set up a worker computer](BUILDING.md#set-up-a-worker-computer) — manual host provisioning; no one-click server installer yet. |
+| Run workers on your own spare computer | [Set up a worker computer](docs/HOST-INSTALL.md) — Linux host preflight and explicit installation. |
+
+## Let your agent set it up
+
+Point your agent at [AGENTS.md](AGENTS.md), or give it this prompt:
+
+> Read this repository's AGENTS.md and setup guide. Install Hermes Crabbox on my
+> chosen worker computer and connect the agent I'm using now. Inspect both
+> machines, preserve existing configuration, keep secrets out of chat, and
+> report what actually works.
+
+[Agent setup guide →](docs/AGENT-SETUP.md) · [Platform support →](docs/HOST-INSTALL.md#platform-support)
 
 ## Connect your agent
 
 <p>
-  <a href="https://cursor.com/link/mcp/install?name=hermes-crabbox&config=eyJ1cmwiOiJodHRwczovL29tYXJjaHkudGFpbDBkNWViNi50cy5uZXQvbWNwIiwiaGVhZGVycyI6eyJBdXRob3JpemF0aW9uIjoiQmVhcmVyICR7ZW52Ok9NQVJDSFlfQ0xPVURfVE9LRU59In19"><img src="https://img.shields.io/badge/Add%20to%20Cursor-Configure%20MCP-7de0c3?style=for-the-badge&labelColor=121b25" alt="Add Hermes Crabbox MCP to Cursor"></a>
-  <a href="https://github.com/thomasbek3/hermes-crabbox/releases/download/v0.1.0-preview.1/omarchy-cloud-delegate.zip"><img src="https://img.shields.io/badge/Download-Agent%20skill-a2b2c4?style=for-the-badge&labelColor=121b25" alt="Download portable delegation skill"></a>
+  <a href="docs/QUICKSTART.md#add-mcp-or-keep-using-http"><img src="https://img.shields.io/badge/Configure-MCP-7de0c3?style=for-the-badge&labelColor=121b25" alt="Configure MCP for your own worker host"></a>
+  <a href="https://github.com/thomasbek3/hermes-crabbox/releases/download/v0.1.0-preview.2/omarchy-cloud-delegate.zip"><img src="https://img.shields.io/badge/Download-Agent%20skill-a2b2c4?style=for-the-badge&labelColor=121b25" alt="Download portable delegation skill"></a>
 </p>
 
 > **Before connecting:** the machine running the agent's tools needs Tailscale
-> access to the configured Omarchy host and a dedicated service credential.
-> The Cursor button adds the server configuration; it does not create access.
+> access to your worker host and a dedicated service credential.
+> The skill installer generates MCP configuration for the server you choose.
 > Source and skill downloads are public. No token is embedded in a button,
 > example, or skill bundle.
 
@@ -98,18 +110,19 @@ manager, then run:
 
 ```sh
 codex mcp add hermes-crabbox \
-  --url https://omarchy.tail0d5eb6.ts.net/mcp \
+  --url https://worker.example.ts.net/mcp \
   --bearer-token-env-var OMARCHY_CLOUD_TOKEN
 ```
 
 ### Hermes: install the delegation skill
 
-From an authenticated clone of this repository:
+Replace the example origin with the HTTPS origin from your host setup receipt:
 
 ```sh
-gh repo clone thomasbek3/hermes-crabbox
+git clone https://github.com/thomasbek3/hermes-crabbox.git
 cd hermes-crabbox
-python3 scripts/install-delegation-skill.py --agent hermes
+python3 scripts/install-delegation-skill.py --agent hermes \
+  --server https://worker.example.ts.net --json
 ```
 
 The installer copies the skill and HTTP caller to `~/.hermes/skills/`, preserves
@@ -117,10 +130,10 @@ existing modified installations, and does not touch credentials or start a job.
 Use `--agent codex` for `~/.agents/skills/`, or `--skills-dir PATH` for a custom
 agent/profile skills directory.
 
-**Other agents:** use the [MCP connection guide](docs/QUICKSTART.md#other-mcp-clients)
-or the included [Python HTTP client](docs/QUICKSTART.md#use-http-instead).
-Cursor users can use the [manual JSON configuration](examples/cursor.mcp.json)
-if the install link is unavailable.
+**Other agents:** use the [MCP connection guide](docs/QUICKSTART.md#add-mcp-or-keep-using-http)
+or the included [Python HTTP client](docs/QUICKSTART.md#add-mcp-or-keep-using-http).
+Cursor users get a server-specific `cursor.mcp.json` in the installed skill.
+Merge it into the selected profile, preserving existing servers.
 
 ### Give it a first assignment
 
@@ -164,15 +177,17 @@ they are not new containers for every role.
 
 ## Project status
 
-**Preview, running on the configured Omarchy host.** This repository packages
-that integration and its operator tooling. It is not yet a turnkey installer
-for a new server. Provider credentials, Tailscale, runtime images, and host
-configuration are provisioned separately.
+**Preview.** Separate [host installation](docs/HOST-INSTALL.md) and
+[caller setup](docs/QUICKSTART.md) paths support agent-driven onboarding.
+The host installer targets Linux x86_64 with systemd and Docker Engine.
+Provider and Tailscale logins remain owner-controlled. See the
+[verification status](docs/STATUS.md) before relying on a fresh deployment.
 
 The basic worker, desktop viewing, evidence capture, and MCP have recorded
 checks. The full optional multi-model workflow remains partially qualified;
-see [status and known limits](docs/STATUS.md). The current ceiling is eight
-concurrent tasks, subject to resource admission—not an eight-task load-test claim.
+see [status and known limits](docs/STATUS.md). The host installer defaults to two
+concurrent tasks and permits up to eight, subject to resource admission; this
+is not an eight-task load-test claim.
 
 PR publishing uses the parent agent's authorized GitHub access. Workers do not
 receive its GitHub credentials. The source is public; access to a running worker
@@ -205,7 +220,8 @@ host; read their documented scope before running them.
 | [`LICENSES/`](LICENSES/) | Preserved upstream licenses and provenance |
 
 Internal Python packages and services retain their `cloudworkbench` names.
-Credentials, databases, raw reviews, recordings, and task outputs are excluded.
+Credentials, databases, raw reviews, and private task outputs are excluded.
+Only the explicitly selected synthetic demo screenshot is included as evidence.
 Historical documents can reference local evidence that is intentionally absent.
 
 </details>

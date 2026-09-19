@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Offline v2 backup and restore rehearsal
 
 This tooling creates a consistent, credential-disabled portable copy of the **new v2 workbench**. It does not stop services, reboot Omarchy, migrate legacy `cloudd`, prune files, or promote a restored copy into production.
@@ -59,14 +64,14 @@ A real promotion requires a separate review of new credentials/client ownership 
 
 Tests exercise a populated synthetic v2 database, uncheckpointed WAL, binary artifacts, ready input, archived session, workspace Git metadata and native event data. They verify source credentials stay valid while backup/restore credentials are disabled, hashes survive roundtrip, absolute paths relocate, and missing files/tampering/traversal/links/nonempty targets/live attempts fail closed.
 
-The synthetic local Mac rehearsal is recorded in [p22-offline-restore-rehearsal.json](../evidence/p22-offline-restore-rehearsal.json), with 27 current passing tests (including credential capsule exclusions) and unchanged source physical/logical database hashes.
+The synthetic local Mac rehearsal is recorded in p22-offline-restore-rehearsal.json (private historical record, not distributed), with 27 current passing tests (including credential capsule exclusions) and unchanged source physical/logical database hashes.
 
 The canonical **actual Omarchy-to-Mac qualification** is the `p22-quiesced-*` receipt set, completed 2026-09-17 at approximately 20:07 UTC:
 
-- [Quiesced source backup](../evidence/p22-quiesced-backup-create.json) follows [qualifier quiescence proof](../evidence/release-fault-quiescence.json). The v2 API/worker were restored after the bounded backup window; legacy services were untouched.
-- [Encrypted SSH stream](../evidence/p22-quiesced-encrypted-transfer.json) produced an AES-256-GCM envelope on the Mac; [authenticated decryption](../evidence/p22-quiesced-decrypt.json) preceded isolated restore. An [independent source tar digest](../evidence/p22-quiesced-source-digest.json) matches the decrypted tar byte-for-byte (1,136,640 bytes). Receipts contain hashes and sizes, never key values.
-- [Isolated restore](../evidence/p22-quiesced-offhost-restore.json) verified 162 files, remapped storage paths, revoked the copied client and started no services.
-- [Independent checks](../evidence/p22-quiesced-independent-check.json) verified all 36 artifact hashes and 5 input hashes, SQLite integrity, 17 closed attempts (16 completed, 1 failed), and zero active restored clients. The failed attempt was an earlier synthetic preparation interruption, retained truthfully; it was not caused by backup or restore.
+- Quiesced source backup (private historical record, not distributed) follows qualifier quiescence proof (private historical record, not distributed). The v2 API/worker were restored after the bounded backup window; legacy services were untouched.
+- Encrypted SSH stream (private historical record, not distributed) produced an AES-256-GCM envelope on the Mac; authenticated decryption (private historical record, not distributed) preceded isolated restore. An independent source tar digest (private historical record, not distributed) matches the decrypted tar byte-for-byte (1,136,640 bytes). Receipts contain hashes and sizes, never key values.
+- Isolated restore (private historical record, not distributed) verified 162 files, remapped storage paths, revoked the copied client and started no services.
+- Independent checks (private historical record, not distributed) verified all 36 artifact hashes and 5 input hashes, SQLite integrity, 17 closed attempts (16 completed, 1 failed), and zero active restored clients. The failed attempt was an earlier synthetic preparation interruption, retained truthfully; it was not caused by backup or restore.
 
 The earlier `p22-live-backup-create` attempt overlapped an active qualifier subtree and is **uncertain/superseded**, not canonical restore proof. Use only the quiesced receipt chain above for the off-host qualification claim.
 
@@ -75,8 +80,8 @@ This proves recovery of the selected logical state into an isolated directory. I
 
 ## Envelope assumptions and review
 
-The local seal/open command requires the `backup` dependency extra (`cryptography`, locked to 50.0.1). Its tests import that dependency directly; a missing install is an error rather than skipped encryption coverage. Nine focused tests passed with zero skips, including exact and over-limit inputs, wrong keys, ciphertext/tag corruption, truncated envelope, dangling symlink destination, stdin CLI execution, exact 32-byte key enforcement and no temporary residue after ordinary failures. See [test receipt](../evidence/p22-envelope-tests.xml).
+The local seal/open command requires the `backup` dependency extra (`cryptography`, locked to 50.0.1). Its tests import that dependency directly; a missing install is an error rather than skipped encryption coverage. Nine focused tests passed with zero skips, including exact and over-limit inputs, wrong keys, ciphertext/tag corruption, truncated envelope, dangling symlink destination, stdin CLI execution, exact 32-byte key enforcement and no temporary residue after ordinary failures. See test receipt (private historical record, not distributed).
 
 Use operator-owned private directories and a filesystem supporting hard links (such as APFS/ext4); no-clobber publication relies on a same-filesystem hard link. Decryption writes private mode-0600 temporary plaintext before tag verification, then publishes the named destination only after authentication. SIGKILL or power loss can leave a `.sealed-backup-*` private orphan; an orphan is never authenticated restore input and must not be promoted. Crash/power-loss cleanup is not qualified here.
 
-Fable's one bounded [envelope review](../reviews/checkpoint-p22-envelope-fable.md) returned **REVISE**. The implementation agent independently addressed its minimum changes and recorded [disposition](../reviews/checkpoint-p22-envelope-disposition.md); this is not a replacement Fable PASS or a whole-release verdict.
+Fable's one bounded envelope review (private historical record, not distributed) returned **REVISE**. The implementation agent independently addressed its minimum changes and recorded disposition (private historical record, not distributed); this is not a replacement Fable PASS or a whole-release verdict.

@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Protected routed verification policy and receipt protocol
 
 `routed_verification_policy.py` is pure controller-side policy. It does not execute checks, read/write files, modify scheduler state, or independently prove that a record came from Docker. Model text and stdout are not verification records. The lifecycle/composition layer must independently bind and inspect actual runtime identity, protected file provenance, immutable candidate mounts, execution status and confirmed physical cleanup.

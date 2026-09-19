@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Retention controls and dry-run inventory
 
 The default session deadline is **30 days after last activity**. `keep` defaults false and prevents eligibility regardless of the deadline. Last activity is the latest session creation, turn, attempt creation/update, event, or retention-control change. Downloads and read-only inspection do not extend it. Archive is an explicit state-changing user action and emits an activity event, so it extends the rolling deadline; it still neither expires nor purges data. An explicit timezone-aware `deadline` can override the rolling deadline; setting it back to null restores rolling behavior. Explicit deadlines must be within 3650 days of the control update. If a native interval is configured, its deadline must precede the explicit session deadline; later activity that reverses that order protects the session pending policy review. Expiry only changes a computed review status: it does not modify attempt states, archive, cancel or purge anything.

@@ -1,6 +1,11 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Jev semantic routing option
 
-Status: proposed design, not enabled or a release dependency. Thomas suggested TypeSafe Jev as the router during the full-spec discussion. No API request, credential access, installation or model-route change is implied by this note.
+Status: proposed design, not enabled or a release dependency. the original operator suggested TypeSafe Jev as the router during the full-spec discussion. No API request, credential access, installation or model-route change is implied by this note.
 
 ## Placement
 
@@ -16,7 +21,7 @@ Supply only the authorized task text, minimal relevant context, current workflow
 
 Use Choice for mutually exclusive workflow selection; independent boolean judgments can identify multiple needs where appropriate. Record exact question/model/schema versions, an access-controlled input reference/hash, allowed candidates, returned probabilities/confidence, proposed role and final policy decision. Probabilities compare supplied choices; confidence summarizes distribution concentration, not factual correctness, permission or proof that a model is best for this workload.
 
-Keep intended workflow selection distinct from empirical model-performance prediction. Existing role-to-model preferences come from Thomas's policy. Changing those preferences would require an explicitly enabled, evaluated adaptive policy; Jev's knowledge alone does not establish relative model performance.
+Keep intended workflow selection distinct from empirical model-performance prediction. Existing role-to-model preferences come from the operator's policy. Changing those preferences would require an explicitly enabled, evaluated adaptive policy; Jev's knowledge alone does not establish relative model performance.
 
 ## Evaluation and failure behavior
 

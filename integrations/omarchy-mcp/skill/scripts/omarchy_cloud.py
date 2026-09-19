@@ -24,6 +24,40 @@ class ClientError(Exception):
     pass
 
 
+def validate_connection(settings):
+    if not isinstance(settings, dict) or set(settings) != {"server", "project", "environment"}:
+        raise ClientError("connection.json requires only server, project and environment")
+    if any(not isinstance(value, str) for value in settings.values()):
+        raise ClientError("connection settings must be strings")
+    parsed = urlsplit(settings["server"])
+    if (parsed.scheme not in ("http", "https") or not parsed.hostname or
+            parsed.username or parsed.password or parsed.query or parsed.fragment or
+            parsed.path.rstrip("/") or any(c.isspace() for c in settings["server"])):
+        raise ClientError("server must be an HTTP(S) origin without credentials or a path")
+    if parsed.scheme != "https" and parsed.hostname not in ("localhost", "127.0.0.1", "::1"):
+        raise ClientError("remote servers require HTTPS")
+    for key in ("project", "environment"):
+        if not re.fullmatch(r"[A-Za-z0-9._-]{1,180}", settings[key]):
+            raise ClientError("project and environment must be simple identifiers")
+    return {**settings, "server": settings["server"].rstrip("/")}
+
+
+def connection_defaults():
+    """Installed non-secret settings, then explicit process environment overrides."""
+    path = Path(__file__).with_name("connection.json")
+    settings = {"server": "", "project": "hermes-tasks",
+                "environment": "hermes-tasks-desktop-soul-v1"}
+    if path.exists():
+        try:
+            if path.stat().st_size > 4096:
+                raise ValueError()
+            settings = validate_connection(json.loads(path.read_text()))
+        except (OSError, ValueError, ClientError):
+            raise ClientError("invalid installed connection.json; repair configuration before connecting") from None
+    return {key: os.environ.get("OMARCHY_CLOUD_" + key.upper(), value)
+            for key, value in settings.items()}
+
+
 class NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         raise ClientError("server redirect refused")
@@ -40,6 +74,8 @@ class Client:
             raise ClientError("remote servers require HTTPS")
         token = os.environ.get("OMARCHY_CLOUD_TOKEN")
         if token is None:
+            if os.name == "nt":
+                raise ClientError("On Windows, supply OMARCHY_CLOUD_TOKEN through the agent process secret environment")
             fd = os.open(token_file, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
             try:
                 info = os.fstat(fd)
@@ -360,8 +396,9 @@ def upload_bytes(client, payload, name, mime, key):
 
 
 def parser():
+    settings = connection_defaults()
     root = argparse.ArgumentParser(description="Call the Omarchy Hermes cloud workbench")
-    root.add_argument("--server", default=os.environ.get("OMARCHY_CLOUD_SERVER", "https://omarchy.tail0d5eb6.ts.net"))
+    root.add_argument("--server", default=settings["server"])
     root.add_argument("--token-file", type=Path, default=Path(os.environ.get("OMARCHY_CLOUD_TOKEN_FILE", "~/.config/omarchy-cloud/token")).expanduser())
     root.add_argument("--timeout", type=float, default=30, help="socket inactivity timeout, not total job duration")
     commands = root.add_subparsers(dest="command", required=True)
@@ -369,8 +406,8 @@ def parser():
     goal = submit.add_mutually_exclusive_group(required=True)
     goal.add_argument("--goal")
     goal.add_argument("--goal-file", type=Path)
-    submit.add_argument("--project", default=os.environ.get("OMARCHY_CLOUD_PROJECT", "hermes-tasks"))
-    submit.add_argument("--environment-version", default=os.environ.get("OMARCHY_CLOUD_ENVIRONMENT", "hermes-tasks-desktop-soul-v1"))
+    submit.add_argument("--project", default=settings["project"])
+    submit.add_argument("--environment-version", default=settings["environment"])
     submit.add_argument("--acceptance", action="append", default=[])
     submit.add_argument("--input-id", action="append", default=[])
     repository = submit.add_mutually_exclusive_group()
@@ -409,9 +446,9 @@ def parser():
 
 
 def main(argv=None):
-    args = parser().parse_args(argv)
     client = None
     try:
+        args = parser().parse_args(argv)
         if args.command == "submit" and args.ref is not None and not args.github:
             raise ClientError("--ref requires --github")
         if getattr(args, "after", 0) < 0:
@@ -462,8 +499,8 @@ def main(argv=None):
         elif command == "list":
             result = client.json("GET", "/sessions?" + urlencode({"limit": args.limit, "offset": args.offset}))
         elif command == "desktop":
-            if client.server != "https://omarchy.tail0d5eb6.ts.net":
-                raise ClientError("Desktop access is configured only for the private Omarchy server")
+            if not os.environ.get("HERMES_CRABBOX_SSH_HOST"):
+                raise ClientError("Set HERMES_CRABBOX_SSH_HOST to the authorized worker SSH target for desktop access")
             if str(uuid.UUID(args.session_id)) != args.session_id:
                 raise ClientError("Invalid session ID")
             snapshot = client.json("GET", f"/sessions/{segment(args.session_id)}")

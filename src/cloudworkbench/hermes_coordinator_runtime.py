@@ -57,8 +57,8 @@ class HermesCoordinatorRuntime(Runtime):
         self.hermes_auth = _path(config['hermes_grok_auth'])
         self.hermes_journal_root = _path(config['hermes_journal_root'])
         self.docker_socket = _path(config.get('docker_socket', '/run/docker.sock'))
-        for name, default in [('coordinator_uid', 959), ('coordinator_gid', 960),
-                              ('docker_gid', 966), ('tool_gid', 1000), ('tool_shared_gid', 959)]:
+        for name, default in [('coordinator_uid', os.geteuid()), ('coordinator_gid', os.getegid()),
+                              ('docker_gid', os.getegid()), ('tool_gid', self.gid), ('tool_shared_gid', self.gid)]:
             value = config.get(name, default)
             if type(value) is not int or not 1 <= value <= 2**31-1:
                 raise RuntimeError('invalid Hermes identity configuration')

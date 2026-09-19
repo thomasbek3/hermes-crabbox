@@ -25,7 +25,7 @@ def test_valid_connect():
 def test_request_parser_rejects_ambiguous_or_forbidden_targets(packet):
     with pytest.raises(egress.Denied):egress.parse_connect(packet,ALLOWED)
 
-@pytest.mark.parametrize('ip',['127.0.0.1','10.0.0.1','100.83.74.92','169.254.169.254','192.168.1.1','172.16.0.1','0.0.0.0','224.0.0.1','::1','fe80::1','fc00::1','::ffff:8.8.8.8','2002:0808:0808::1'])
+@pytest.mark.parametrize('ip',['127.0.0.1','10.0.0.1','100.64.0.10','169.254.169.254','192.168.1.1','172.16.0.1','0.0.0.0','224.0.0.1','::1','fe80::1','fc00::1','::ffff:8.8.8.8','2002:0808:0808::1'])
 def test_private_and_transition_dns_rejected(monkeypatch,ip):
     monkeypatch.setattr(socket,'getaddrinfo',lambda *a,**k:[(socket.AF_INET6 if ':' in ip else socket.AF_INET,socket.SOCK_STREAM,6,'',(ip,443))])
     with pytest.raises(egress.Denied):egress.public_addresses('example.com')

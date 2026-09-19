@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Opt-in v1 command adapter
 
 `cloud-compat` accepts the familiar `run/status/log/file/ls/rm/wait` verbs and talks to the authenticated v2 API. It does not replace `cloud.sh`, change port7777, import old jobs, or copy legacy credentials. IDs are v2 session IDs; old IDs remain on the legacy service until an explicit import/mapping exists.
@@ -6,7 +11,7 @@ Create a non-secret configuration pointing to the existing private **named v2 cl
 
 ```json
 {
-  "server": "https://omarchy.tail0d5eb6.ts.net",
+  "server": "https://worker.example.ts.net",
   "token_file": "~/.config/cloud2/token",
   "default": {"project_id": "sample-repo", "environment_version": "repo-v1"},
   "repositories": {
@@ -31,4 +36,4 @@ cloud-compat --config ~/.config/cloud2/compat.json file SESSION_ID booking.py
 
 `wait` has a deadline and returns nonzero on failed/cancelled/interrupted/paused/rejected/unknown states, protocol errors or timeout. Completed `unverified` or `needs_review` returns zero for execution completion; the printed outcome explicitly does not claim verification. Disconnect does not cancel work. `rm` requires `--confirm`, calls the distinct purge endpoint, and currently returns its explicit unsupported error; it never silently cancels or archives.
 
-Qualification:21 focused HTTP tests cover mapped submit, literal prompt, idempotency, denied options, wait/error handling, pagination, credential redaction and binary latest-attempt download. `evidence/compat-live-corrected.json` proves status/list/log/wait/file against the real verified repository session on Omarchy, with file SHA matching the API artifact. Corrected qualification used HTTPS and the Thomas cloud2 named principal; before/after session/attempt/event/artifact counts and legacy PID matched, including confirmed purge returning its unsupported error. This is bounded observational evidence, not a guarantee against unrelated concurrent operations. No token migration occurred. A full legacy principal/import/cutover rehearsal remains open.
+Qualification:21 focused HTTP tests cover mapped submit, literal prompt, idempotency, denied options, wait/error handling, pagination, credential redaction and binary latest-attempt download. `evidence/compat-live-corrected.json` proves status/list/log/wait/file against the real verified repository session on Omarchy, with file SHA matching the API artifact. Corrected qualification used HTTPS and the the original operator cloud2 named principal; before/after session/attempt/event/artifact counts and legacy PID matched, including confirmed purge returning its unsupported error. This is bounded observational evidence, not a guarantee against unrelated concurrent operations. No token migration occurred. A full legacy principal/import/cutover rehearsal remains open.

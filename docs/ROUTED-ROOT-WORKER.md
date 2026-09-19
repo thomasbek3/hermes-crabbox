@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Routed root worker — local controller checkpoint
 
 Status: implemented local composition; production integration and review approval remain open. This checkpoint does not claim the full platform is complete or deployed. The earlier app snapshot reported BLOCKED, without a status update by this checkpoint. A subsequent fresh `get_goal` read now reports ACTIVE (`updatedAt=1789740863`); the historical blocked snapshot is superseded.

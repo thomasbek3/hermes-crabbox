@@ -7,7 +7,7 @@ import sys
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = ROOT/'scripts/qualify-routed-worker-bootstrap-linux.py'
+SCRIPT = ROOT/'scripts/legacy/qualify-routed-worker-bootstrap-linux.py'
 
 
 @pytest.fixture
@@ -131,7 +131,7 @@ def receipt(module,tmp_path):
     identity={'uid':959,'primary_gid':960,'groups':[959,960,966],'name':'worker'}
     services={n:{'MainPID':100+i,'ActiveState':'active'} for i,n in enumerate(module.SERVICES)}
     parent=Path('/tmp')/('cwb2-workerqual-'+bundle['run_id'])/'b'/(module.sha(b'attempt')[:24]+'.1')/'stages/review'
-    value={'status':'passed','hostname':'omarchy','run_id':bundle['run_id'],'source_hashes':bundle['hashes'],
+    value={'status':'passed','hostname':'archived-worker.invalid','run_id':bundle['run_id'],'source_hashes':bundle['hashes'],
         'harness_sha256':bundle['harness_sha256'],'identity_before':identity,'identity_after':dict(identity),
         'service_pids_before':services,'service_pids_after':dict(services),'remote_inference':False,'docker_used':False,
         'scoped_fd_entry_not_actual_bind_mount':True,'identities_unchanged':True,'service_pids_unchanged':True,

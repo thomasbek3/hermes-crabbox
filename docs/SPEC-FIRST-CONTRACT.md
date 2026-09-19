@@ -1,8 +1,13 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Full-spec baseline: Hermes, pstack and cloud workbench
 
-Approved model and Jev workflow policy: [PSTACK-MODEL-POLICY.md](PSTACK-MODEL-POLICY.md). It supersedes older role mappings below. Thomas has resumed implementation; the policy remains unactivated pending qualification.
+Approved model and Jev workflow policy: [PSTACK-MODEL-POLICY.md](PSTACK-MODEL-POLICY.md). It supersedes older role mappings below. the original operator has resumed implementation; the policy remains unactivated pending qualification.
 
-Current authority, 2026-09-18: Thomas resumed implementation after the spec-first pause and explicitly replaced Fable checkpoint reviews with the call-grok skill, Grok 4.6/xhigh, read-only. Historical Fable reviews and dispositions remain evidence. This changes the engineering checkpoint reviewer, not the approved planning/model-role policy. The platform goal and all A/B/C requirements remain intact; current execution evidence is in BUILD-STATUS.md and CHECKPOINTS.md.
+Current authority, 2026-09-18: the original operator resumed implementation after the spec-first pause and explicitly replaced Fable checkpoint reviews with the call-grok skill, Grok 4.6/xhigh, read-only. Historical Fable reviews and dispositions remain evidence. This changes the engineering checkpoint reviewer, not the approved planning/model-role policy. The platform goal and all A/B/C requirements remain intact; current execution evidence is in BUILD-STATUS.md and CHECKPOINTS.md.
 
 ## 1. Authority and document map
 
@@ -20,7 +25,7 @@ The user creates a task with inputs/repositories, acceptance criteria, environme
 | B | Complete private visual workbench: browser automation and independent visual checks, per-session previews with HTTP/WS, dashboard/environment/readiness pages, actual isolated desktop/terminal takeover, approvals and scoped draft PR delivery | All A gates plus every B00–B11 unit and B-C1–B-C5 gate; no placeholder feature counts. |
 | C | Remaining requested provider/model routes, scoped skills/MCP and opted-in notifications; qualified Claude/Codex/Grok backends and the requested role/panel policy where account access permits | Repeat applicable A/B/H gates per enabled route. Unavailable requested routes remain outstanding requirements, not completed N/A. No new paid identity/API spend is assumed. |
 
-The default A policy follows PSTACK-MODEL-POLICY.md: Grok implementation, Astra plan/code review, Sol acceptance verification, and Fable planning and design decisions. An alternative two-model same-backend A milestone requires Thomas to choose that explicit temporary policy before activation; it is not an automatic fallback. That is a milestone, not completion of the approved Grok/Fable/Astra/Sol role map. Only an explicit owner choice can remove a requested model/backend from full scope. P23 remains optional multi-worker expansion, mandatory before hostile multi-tenant claims; open-web research remains gated by its credential-isolating profile.
+The default A policy follows PSTACK-MODEL-POLICY.md: Grok implementation, Astra plan/code review, Sol acceptance verification, and Fable planning and design decisions. An alternative two-model same-backend A milestone requires the original operator to choose that explicit temporary policy before activation; it is not an automatic fallback. That is a milestone, not completion of the approved Grok/Fable/Astra/Sol role map. Only an explicit owner choice can remove a requested model/backend from full scope. P23 remains optional multi-worker expansion, mandatory before hostile multi-tenant claims; open-web research remains gated by its credential-isolating profile.
 
 ## 3. Immutable policy and qualification records
 
@@ -34,7 +39,7 @@ Activation uses CAS against the prior active policy/environment version. Failed 
 
 ## 4. Requested roles and model mapping
 
-The authoritative role/model/effort mapping and Jev workflow-selection design are in [PSTACK-MODEL-POLICY.md](PSTACK-MODEL-POLICY.md), approved by Thomas on 2026-09-17. Fable plans and revises; Grok performs coding and exploration; GPT-6 Astra high adversarially reviews plans and resulting code; GPT-5.6 Sol max independently verifies acceptance and performs tooling reflection.
+The authoritative role/model/effort mapping and Jev workflow-selection design are in [PSTACK-MODEL-POLICY.md](PSTACK-MODEL-POLICY.md), approved by the original operator on 2026-09-17. Fable plans and revises; Grok performs coding and exploration; GPT-6 Astra high adversarially reviews plans and resulting code; GPT-5.6 Sol max independently verifies acceptance and performs tooling reflection.
 
 Native provider IDs, supported effort, transport and entitlement require qualification before activation. No silent model substitution or effort reduction. Every admitted seat retains its ordinal identity and frozen policy. Existing historical panel evidence remains historical and does not establish the newly agreed policy as deployed. The separate Mini Codex sol/high lane stays unchanged.
 
@@ -62,7 +67,7 @@ Grok 4.6/xhigh checkpoint review through call-grok is an engineering quality gat
 
 ## 7. Authentication and Hermes transport decision
 
-The preferred initial identity remains Thomas's separate cloud login using his existing Claude subscription. No API key or new paid account is selected by this spec. Current direct-Claude success proves neither Hermes compatibility nor billing. Stock legacy claude-bridge is rejected as the target because the pinned source discards tool schemas, lets Claude CLI own tools, rewrites model IDs, exposes an unauthenticated listener and reports unparsed zero usage. See the source-bound bridge audit; do not execute its installer.
+The preferred initial identity remains the operator's separate cloud login using his existing Claude subscription. No API key or new paid account is selected by this spec. Current direct-Claude success proves neither Hermes compatibility nor billing. Stock legacy claude-bridge is rejected as the target because the pinned source discards tool schemas, lets Claude CLI own tools, rewrites model IDs, exposes an unauthenticated listener and reports unparsed zero usage. See the source-bound bridge audit; do not execute its installer.
 
 The candidate to qualify is a bounded inference-only transport to a pinned unmodified Claude CLI through its supported interface: empty CLI/MCP tool set, isolated dedicated auth owner, bounded transcript in stdin, exact model/effort, structured validated final-or-tool-decision output. Hermes executes all tools and supplies matching tool results on subsequent inference. This is an unproven engineering option, not a claim of provider support or subscription billing. Required feasibility exit: exact CLI flags/protocol and applicable supported use checked, real Hermes tool roundtrip, two actual model identities, resource/cancel/restart behavior and auth method proven. If it fails, retain the explicit backend decision gate; do not fall back to a direct Claude agent, raw reused subscription token or silently paid API path.
 
@@ -88,7 +93,7 @@ C additionally proves requested cross-provider/panel routes, all seats and cross
 ## 9. Work order after this specification checkpoint
 
 1. S0: freeze full docs, Grok 4.6/xhigh review raw requirements/contracts, independently resolve findings and record remaining owner-only gates. No software rollout during S0.
-2. H1: auth/transport feasibility and exact model mapping; fake protocol fixtures then already-authorized bounded live qualification. Grok 4.6/xhigh review. If preferred subscription path fails, prepare concrete supported alternatives with authority/cost differences for Thomas; do not assume a replacement.
+2. H1: auth/transport feasibility and exact model mapping; fake protocol fixtures then already-authorized bounded live qualification. Grok 4.6/xhigh review. If preferred subscription path fails, prepare concrete supported alternatives with authority/cost differences for the original operator; do not assume a replacement.
 3. H2: immutable policies, child graph, broker/plugin call, admission/leases/cancel/recovery and safe result provenance. Grok 4.6/xhigh review. Preserve existing infrastructure contracts and jobs.
 4. H3: actual two-model end-to-end A acceptance plus remaining operational/migration gates. Grok 4.6/xhigh review; no full-A claim before physical/restore/cutover requirements pass.
 5. B-C1 through B-C5: complete visual/interaction/integration units with Hermes, preserving each unit's Grok checkpoint and live acceptance.
@@ -104,7 +109,7 @@ Existing v2 infrastructure/direct-Claude jobs remain historical evidence. P15 bu
 
 ## 11. Optional semantic selector discussed after review freeze
 
-Thomas proposed TypeSafe Jev for ambiguous task routing. [Jev routing option](JEV-ROUTING-OPTION.md) records the proposed design and evaluation boundary. Explicit roles retain deterministic mappings. This option is not enabled, not required for A/B/C completion, and was not part of the first frozen Fable review pack. It neither replaces Hermes/pstack nor authorizes provider calls.
+the original operator proposed TypeSafe Jev for ambiguous task routing. [Jev routing option](JEV-ROUTING-OPTION.md) records the proposed design and evaluation boundary. Explicit roles retain deterministic mappings. This option is not enabled, not required for A/B/C completion, and was not part of the first frozen Fable review pack. It neither replaces Hermes/pstack nor authorizes provider calls.
 
 ## 12. Design resolutions after independent Fable review
 
@@ -164,7 +169,7 @@ A reconstructed follow-up starts a new root attempt from the last delivered revi
 
 ### D7 — Feasibility and owner gates
 
-Existing authorization remains the dedicated Claude subscription login. H1 first verifies the proposed use against the provider's current supported CLI interface and terms; a technical bridge alone is not support evidence. No generic extra permission ceremony is required. If the intended path cannot be established as supported, present that specific uncertainty with concrete supported credential/transport alternatives and any extra cost/data consequences for Thomas to choose; do not silently reinterpret permission to use a subscription as permission for a different paid API.
+Existing authorization remains the dedicated Claude subscription login. H1 first verifies the proposed use against the provider's current supported CLI interface and terms; a technical bridge alone is not support evidence. No generic extra permission ceremony is required. If the intended path cannot be established as supported, present that specific uncertainty with concrete supported credential/transport alternatives and any extra cost/data consequences for the original operator to choose; do not silently reinterpret permission to use a subscription as permission for a different paid API.
 
 Grok entitlement/login mode and requested model availability are explicit unresolved execution gates. Read-only account/mode discovery may use already-authorized access; no new login, token export or API spending is inferred. An already-authorized native Hermes backend may be feasibility-tested alongside the CLI option only after its exact account, credential scope and paid-use authority are established. Otherwise finish source/fixture design and retain the account gate. The requested default role map stays intact; a same-backend A alternative needs an explicit chosen policy.
 

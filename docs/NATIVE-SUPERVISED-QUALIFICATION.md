@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Native Hermes through supervised Docker — isolated qualification
 
 Canonical actual execution: `evidence/native-supervised-linux-20260918T012005Z.json`. The matching `.source-snapshot.json` stores every executed controller source and the caller helper; `.harness.py` is the exact pre-execution harness. Thirty local validation tests load those actual artifacts, hash every source/helper/harness and reject altered cleanup, identity, accounting, journal, process and tool-result evidence.

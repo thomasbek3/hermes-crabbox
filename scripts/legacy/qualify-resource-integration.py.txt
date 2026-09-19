@@ -1,0 +1,153 @@
+#!/usr/bin/env python3
+"""Disposable real-Docker Runner/Store/bundle proof; no installed services touched."""
+
+# Archived one-off operation; use the supported host installer instead.
+raise SystemExit('Archived operation is disabled. See docs/AGENT-SETUP.md for supported installation.')
+
+import datetime
+import hashlib
+import io
+import json
+import os
+from pathlib import Path
+import socket
+import subprocess
+import time
+import uuid
+import zipfile
+from cloudworkbench.runtime import Runtime
+from cloudworkbench.runner import Runner
+from cloudworkbench.store import Store
+from cloudworkbench.resource_monitor import EVENT_TYPE
+from cloudworkbench.result_bundle import authorized_snapshot, build_bundle
+
+IMAGE='sha256:408eb6e2b5c4cb58747fbb1fbac31031545135005079abf878012c33a6632331'
+
+
+def docker(*args,check=True):
+    result=subprocess.run(['/usr/bin/docker',*args],capture_output=True,text=True,timeout=15,check=check,env={'PATH':'/usr/bin:/bin','LANG':'C.UTF-8'})
+    return result.stdout.strip()
+
+
+def main():
+    assert socket.gethostname()=='archived-worker.invalid'
+    assert docker('image','inspect',IMAGE,'--format','{{.Id}}')==IMAGE
+    stage=Path(__file__).resolve().parents[2]
+    owner='resint-'+uuid.uuid4().hex[:12]
+    state=stage/'proof-state';state.mkdir(mode=0o700)
+    work=state/'workspaces';work.mkdir()
+    containers=[];runner=None
+    receipt={'host':socket.gethostname(),'time':datetime.datetime.now(datetime.timezone.utc).isoformat(),
+             'owner':owner,'image':IMAGE,'source_deployed':False,'services_changed':False,
+             'provider_jobs':False,'credentials_used':False,'source_sha256':json.loads((stage/'source-manifest.json').read_text()),
+             'tick_limit_seconds':1.5,'workload_handles_sigterm':True,'existing_docker_stop_grace_seconds':10,'scope':'disposable synthetic Runner control and real Docker observations; not host performance qualification'}
+    tick_times=[]
+    config={'state_root':str(state),'database':str(state/'state.sqlite'),'capacity':1,'test_mode':True,
+            'agents':['fixture'],'projects':{'project':{'checks':[]}},'resource_sampling_cadence_seconds':10,
+            'runtime':{'root':str(work),'image':IMAGE,'owner':owner,'cpus':.25,'memory_mib':128,'pids':16,
+                       'workspace_mib':64,'test_path_workspace':True,'uid':1000,'gid':1000}}
+    try:
+        store=Store(Path(config['database']))
+        principal=store.add_client('proof-owner',uuid.uuid4().hex+uuid.uuid4().hex,['submit','observe','retrieve','cancel'],['project'])
+        runner=Runner(store,config)
+        def create_container(a,role):
+            rid=docker('create','--name','cwb2-'+owner+'-'+role,'--label','io.cloudworkbench.managed=true',
+                '--label','io.cloudworkbench.owner='+owner,'--label','io.cloudworkbench.attempt='+a['id']+('-verify' if role=='verifier' else ''),
+                '--label','io.cloudworkbench.generation='+str(a['generation']),'--label','io.cloudworkbench.role=job',
+                '--network','none','--read-only','--cap-drop','ALL','--security-opt','no-new-privileges','--user','1000:1000',
+                '--cpus','.25','--memory','128m','--memory-swap','128m','--pids-limit','16',
+                '--tmpfs','/tmp:rw,nosuid,nodev,noexec,size=16m','--entrypoint','python3',IMAGE,'-c',
+                'import signal,sys,time; signal.signal(signal.SIGTERM,lambda *_:sys.exit(0)); data=bytearray(8*1024*1024); time.sleep(110)')
+            containers.append(rid);docker('start',rid)
+            settings=json.loads(docker('inspect','--format','{{json .HostConfig}}',rid))
+            assert settings['NetworkMode']=='none' and settings['ReadonlyRootfs'] and settings['NanoCpus']==250000000
+            assert settings['Memory']==134217728 and settings['PidsLimit']==16
+            assert not json.loads(docker('inspect','--format','{{json .Mounts}}',rid))
+            return rid
+        def new_attempt(key):
+            task=store.create_session(principal,{'project_id':'project','goal':'Disposable resource integration qualification','agent':'fixture'},key)
+            a=store.claim_next(capacity=1);assert a['id']==task['attempt_id']
+            rid=create_container(a,key)
+            a=store.transition(a['id'],'running',runtime_id=rid,expected_generation=a['generation'])
+            spool=runner.runtime.native_state(a['session_id'])/'events'/f"{a['id']}.{a['generation']}.jsonl"
+            spool.parent.mkdir();spool.touch()
+            return a
+        def tick():
+            before=time.monotonic();runner.tick();elapsed=time.monotonic()-before;tick_times.append(elapsed)
+            assert elapsed<receipt['tick_limit_seconds'],('tick_budget',elapsed)
+        def events(a):
+            return [e for e in store.events(principal,a['session_id']) if e['type']==EVENT_TYPE]
+        def until(predicate,timeout=15):
+            deadline=time.monotonic()+timeout
+            while not predicate():
+                assert time.monotonic()<deadline,'proof_wait_timeout'
+                tick();time.sleep(.1)
+        a=new_attempt('execution')
+        until(lambda:len(events(a))>=2,timeout=26)
+        assert store.get_attempt(a['id'])['state']=='running'
+        execution_id=a['runtime_id']
+        runner.runtime.stop(execution_id,expected_generation=1);runner.runtime.cleanup(execution_id,expected_generation=1)
+        verifier_id=create_container(a,'verifier')
+        a=store.transition(a['id'],'verifying',runtime_id=verifier_id,expected_generation=1)
+        until(lambda:len(events(a))>=3)
+        before_restart=events(a)
+        runner.close();store=Store(Path(config['database']));runner=Runner(store,config)
+        assert events(a)==before_restart
+        # Submit a real observation and commit terminal state before polling it.
+        until(lambda:runner.resources._pending is not None)
+        pending=runner.resources._pending[0]
+        receipt['terminal_sample_was_pending']=not pending.done()
+        assert receipt['terminal_sample_was_pending']
+        runner.runtime.stop(verifier_id,expected_generation=1)
+        final=runner.end(store.get_attempt(a['id']),'completed',outcome='unverified',result={'summary':'Synthetic resource qualifier; no provider or acceptance verification'})
+        snap,files=authorized_snapshot(store,principal,a['session_id'])
+        blob=build_bundle(snap,files,state/'artifacts')
+        count=len(events(a))
+        deadline=time.monotonic()+4
+        while not pending.done():assert time.monotonic()<deadline;time.sleep(.01)
+        late=runner.resources.poll();assert late['status']=='dropped' and late['reason']=='stale_binding'
+        assert len(events(a))==count
+        again,files=authorized_snapshot(store,principal,a['session_id']);assert build_bundle(again,files,state/'artifacts')==blob
+        with zipfile.ZipFile(io.BytesIO(blob)) as archive:
+            result=json.loads(archive.read('result.json'))
+            entries={name:hashlib.sha256(archive.read(name)).hexdigest() for name in archive.namelist()}
+        measured=result['resources']['measured_usage'];assert measured['status']=='observed'
+        assert measured['roles']['execution']['history_retained_events']==2
+        assert measured['roles']['verifier']['history_retained_events']==1
+        assert measured['roles']['execution']['binding']['runtime_id']==execution_id
+        assert measured['roles']['verifier']['binding']['runtime_id']==verifier_id
+        assert measured['true_peak'] is False and result['cost']['value'] is None
+        receipt.update(terminal_attempt={'session_id':a['session_id'],'id':a['id'],'generation':1,'state':final['state'],'outcome':final['outcome']},
+            observations=events(a),measured_usage=measured,restart_readback_identical=True,late_result=late,
+            bundle={'sha256':hashlib.sha256(blob).hexdigest(),'bytes':len(blob),'entries':entries,'late_result_bytes_unchanged':True})
+        cancelled=new_attempt('cancel')
+        until(lambda:runner.resources._pending is not None)
+        pending=runner.resources._pending[0];assert not pending.done()
+        store.cancel(principal,cancelled['id'],'cancel-proof');before=time.monotonic();tick()
+        cancel_elapsed=time.monotonic()-before
+        cancelled=store.get_attempt(cancelled['id']);assert cancelled['state']=='cancelled'
+        deadline=time.monotonic()+4
+        while not pending.done():assert time.monotonic()<deadline;time.sleep(.01)
+        late_cancel=runner.resources.poll();assert late_cancel['status']=='dropped'
+        assert not events(cancelled)
+        receipt.update(cancellation={'attempt_id':cancelled['id'],'state':cancelled['state'],'seconds':cancel_elapsed,'late_result':late_cancel},
+                       ticks={'count':len(tick_times),'max_seconds':max(tick_times),'durations_seconds':tick_times},status='passed')
+    except Exception as exc:
+        receipt.update(status='failed',error_type=type(exc).__name__,error=str(exc)[:300])
+    finally:
+        if runner:runner.close()
+        for rid in containers:
+            found=docker('container','ls','--all','--no-trunc','--filter','id='+rid,'--format','{{.ID}}')
+            if not found:continue
+            assert found==rid
+            labels=json.loads(docker('inspect','--format','{{json .Config.Labels}}',rid))
+            assert labels['io.cloudworkbench.owner']==owner
+            docker('rm','-f',rid)
+        remaining=docker('container','ls','--all','--no-trunc','--filter','label=io.cloudworkbench.owner='+owner,'--format','{{.ID}}')
+        networks=docker('network','ls','--no-trunc','--filter','label=io.cloudworkbench.owner='+owner,'--format','{{.ID}}')
+        receipt.setdefault('ticks',{'count':len(tick_times),'max_seconds':max(tick_times) if tick_times else None,'durations_seconds':tick_times})
+        receipt['cleanup']={'containers_remaining':remaining.splitlines(),'networks_remaining':networks.splitlines(),'verified':not remaining and not networks}
+    print(json.dumps(receipt,indent=2))
+    return 0 if receipt['status']=='passed' and receipt['cleanup']['verified'] else 1
+
+if __name__=='__main__':raise SystemExit(main())

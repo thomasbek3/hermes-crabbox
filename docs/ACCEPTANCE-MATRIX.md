@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Acceptance evidence and remaining gates
 
 Historical infrastructure audit after the 2026-09-17 auth/retention/image deployment. Current correction: no direct-Claude receipt below satisfies Hermes H01–H08; the normative full-spec contract is SPEC-FIRST-CONTRACT.md. Requirements are SPEC.md sections16–17. The frozen candidate passed541 tests; subsequent bounded build/resume and Linux private-directory corrections passed14 driver and101 affected tests. Auth rollout and three real provider attempts passed with parent readback. P15 bundle/API/default UI was subsequently deployed (p15-api-live-binding.json, p15-live-browser.json); dashboard input UI and resource integration remain undeployed. Historical receipts retain their exact source/image bindings.

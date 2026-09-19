@@ -1,55 +1,87 @@
-# Omarchy Cloud: private MCP and portable delegation
+# Private MCP service and caller access
 
-MCP endpoint: **https://omarchy.tail0d5eb6.ts.net/mcp**
-HTTP API origin: **https://omarchy.tail0d5eb6.ts.net**
-Skill bundle: **https://omarchy.tail0d5eb6.ts.net/mcp/skill.zip**
+[Agent setup](../../docs/AGENT-SETUP.md) · [Host installation](../../docs/HOST-INSTALL.md) · [Caller setup](../../docs/QUICKSTART.md)
 
-All three require Tailscale connectivity. MCP and the bundle require a service-issued `Authorization: Bearer …` credential; no secrets belong in URLs. An MCP caller can also read the full skill immediately using `get_delegation_guide`. This returns instructions; an MCP server does not automatically install a persistent skill in the caller.
+Each installation has its own private Tailscale origin. There is no shared
+maintainer endpoint. The MCP URL is `<ORIGIN>/mcp`; HTTP uses `<ORIGIN>`;
+the authenticated generic skill bundle is `<ORIGIN>/mcp/skill.zip`.
 
 ## Connect an agent
 
-1. Ensure the machine/container executing the agent's tools can reach the Omarchy tailnet address. Adding an MCP URL does not create a network path for a third-party SaaS host.
-2. Have the operator provision a dedicated caller credential using the script below. Store it in that agent host's secret manager. The task service owns these credentials; do not use a model-provider or Tailscale API key.
-3. Add a remote **Streamable HTTP** MCP server at the endpoint above and configure its Authorization header through the client's secret facility. Field names and environment substitution vary by client; the following is a conceptual connection record, not a universal configuration format:
+The tool-execution host needs Tailscale reachability and a dedicated service
+credential. Configure Streamable HTTP with an Authorization header from the
+client's secret facility. MCP does not create network access or automatically
+install a persistent skill. The host does not implement browser OAuth login.
 
-```json
-{
-  "name": "omarchy-cloud",
-  "transport": "streamable-http",
-  "url": "https://omarchy.tail0d5eb6.ts.net/mcp",
-  "headers": {"Authorization": "Bearer <secret-manager supplied service credential>"}
-}
-```
-
-4. Load `get_delegation_guide`, or download the authenticated skill ZIP and install its `omarchy-cloud-delegate` folder in the caller's supported skills directory. The ZIP includes the Python HTTP caller and parent-side PR-evidence publisher.
-5. Submit an assignment. Save its IDs, check status later, retrieve artifacts, and publish only within the user's authorized PR scope.
-
-For clients without arbitrary-header remote MCP support, use the included Python HTTP client. This release does not implement OAuth discovery/login. The API and MCP are first-party interfaces of the same task service and use the same issued credential, scopes, ownership and revocation rules. The adapter never holds a shared master credential or accepts a provider credential for downstream authentication.
+Use the [caller installer](../../docs/QUICKSTART.md) to save the chosen origin,
+project and environment and generate Cursor configuration. Other clients may
+use the standalone HTTP fallback. After MCP connection, call
+`get_delegation_guide`: it returns the deployment's connection settings as well
+as the complete delegation instructions. A generic ZIP download requires those
+settings or explicit `OMARCHY_CLOUD_*` variables before its clients can run.
 
 ## Tools
 
-`get_delegation_guide`, `submit_task`, `get_task`, `list_tasks`, `get_events`, `get_results`, `read_artifact`, `follow_up`, `cancel_task`, `prepare_input`.
+`get_delegation_guide`, `submit_task`, `get_task`, `list_tasks`, `get_events`,
+`get_results`, `read_artifact`, `follow_up`, `cancel_task`, `prepare_input`.
 
-Submissions return immediately. The worker is independent of MCP connection lifetime. Events are finite batches with cursors. Large source uploads/media downloads use existing authenticated HTTP endpoints rather than base64 in model context. Every mutation requires a caller-supplied idempotency key. Queued and completed are task states, not acceptance-verification guarantees.
+Tasks run independently of the MCP connection. Save session and attempt IDs.
+Mutations need caller-supplied idempotency keys; reuse the original key after an
+uncertain retry. Events are finite batches with cursors. Transfer large files
+through HTTP, not base64 in model context. A completed process is not proof
+that the task's acceptance criteria passed.
 
-Public repository details can be part of the assignment; the worker has internet access. Private/local source is uploaded by the caller using its own GitHub/local access. MCP does not borrow caller filesystem paths or mount caller credentials. PR publication remains a parent-side operation; this service does not add push/merge/deploy tools. Remote VNC viewing still uses the separate SSH viewer helper.
+Private source is uploaded using the parent's existing local/GitHub access.
+The service does not borrow caller filesystem paths or GitHub credentials.
+PR publishing remains parent-side; these tools do not push, merge or deploy.
+Optional VNC requires its separate SSH viewer setup.
 
 ## Operator provisioning
 
-Run on Omarchy with operator privileges:
+On the worker host:
 
 ```sh
-sudo /opt/cloud-workbench/.venv/bin/python /opt/omarchy-mcp/provision-delegation-client.py cloud-muse
+sudo /opt/cloud-workbench/.venv/bin/python \
+  /opt/cloud-workbench/scripts/provision-delegation-client.py laptop-agent
 ```
 
-Use a different name such as `cloud-grokbot` for another caller. The command prints only the client ID, scopes and protected credential-file path. Transfer that file to the intended host's secret store over an authenticated channel; never paste it in agent instructions. Repeating the command preserves an existing valid credential. Credentials are scoped to submit/observe/retrieve/cancel for project hermes-tasks and tasks are owner-isolated. Creating a new client does not give it access to a previous client's jobs.
+Use a different caller name for each agent. Optional `--config`,
+`--credential-dir`, and `--project` select non-default installations/projects.
+The result prints the client ID, scopes and protected credential-file path;
+never its contents. Transfer the file through the owner's approved secret
+mechanism. Repeating the command preserves a matching valid credential.
 
-No cloud Muse/Grokbot connection or credentials are created implicitly by deploying this endpoint. Their exact host/secret configuration still needs to be supplied when onboarding them.
+Credentials cover submit/observe/retrieve/cancel for the selected project.
+Tasks and inputs remain owner-isolated. A new credential does not automatically
+inherit another caller's existing tasks. Provider/Tailscale tokens do not work
+as task API credentials.
 
-## Deployment
+## Service configuration
 
-Official MCP Python SDK1.30.0 (maintained v1 line), pinned dependencies in requirements.lock. Isolated runtime `/opt/omarchy-mcp/.venv`; existing API/worker Python environments are unchanged. `cloud-workbench-mcp.service` runs as a dynamic unprivileged user, binds only127.0.0.1:7781 and has loopback-only network access. Tailscale Serve forwards `/mcp` to it while `/` continues to the existing API on7780. No Funnel/public exposure.
+The host installer writes `/etc/cloud-workbench/mcp.env`:
 
-The gateway validates each credential against the API, then each tool operation is independently checked by the API for its scope, ownership and project. Host/Origin checks, request/response bounds and no-redirect backend calls are enabled. No request bodies or credentials are logged. Skill package downloads also require authentication.
+| Variable | Meaning |
+| --- | --- |
+| `HERMES_CRABBOX_ORIGIN` | Required private `https://HOST.TAILNET.ts.net` origin |
+| `HERMES_CRABBOX_UPSTREAM` | Loopback HTTP API origin, default `http://127.0.0.1:7780` |
+| `HERMES_CRABBOX_MCP_PORT` | Loopback MCP port, default `7781` |
+| `HERMES_CRABBOX_PROJECT` | Project identifier, default `hermes-tasks` |
+| `HERMES_CRABBOX_ENVIRONMENT` | Default worker environment version |
+| `HERMES_CRABBOX_MODEL` | Model identifier accepted by the configured worker project |
+| `HERMES_CRABBOX_ROUTED_ENVIRONMENT` | Optional pstack environment; unset disables routed submissions |
 
-Targeted integration checks use the real API/store with no worker/provider execution. The live smoke script uses the official MCP client for discovery, skill retrieval, task listing and optional access to an existing task; it performs no mutations or model calls. Connection evidence is under `evidence/private-mcp/`.
+The MCP service uses its own pinned Python dependencies from `requirements.lock`
+and an unprivileged dynamic systemd user. It has no database, Docker socket,
+provider login or shared master credential. It forwards each caller's service
+credential to the API, where scope, project and ownership are independently
+checked. Host/Origin validation, request bounds, no-redirect backend requests,
+and loopback-only backend configuration remain enabled. Tailscale Serve exposes
+private routes; the installer does not enable Funnel.
+
+## Verification
+
+Protocol tests use the real API/store with no worker/provider execution. For an
+installed server, `scripts/check-private-mcp.py --server YOUR_ORIGIN` checks MCP
+discovery, guide retrieval, task listing and the generic skill download. It reads
+an existing credential privately and performs no task mutations or model calls.
+Use a separate small delegated task to prove actual worker operation.

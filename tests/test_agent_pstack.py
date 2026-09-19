@@ -12,7 +12,17 @@ def task(tmp_path, monkeypatch):
     request.write_text(json.dumps({'prompt': 'Create a tested small function.', 'api_key': 'grok-secret',
         'pstack': {'credentials': {'anthropic':'claude-secret', 'openai-codex':'codex-secret','jev':'jev-secret'}}}))
     monkeypatch.setattr(m, 'REQUEST', request)
-    monkeypatch.setattr(m, 'PSTACK', Path(__file__).resolve().parents[2] / 'work/hermes-pstack-image-context/pstack')
+    # These tests exercise orchestration against synthetic instruction files.
+    pstack = tmp_path / 'pstack'
+    for relative in ('skills/architect/references/runner-prompt.md',
+                     'skills/architect/references/design-red-flags.md',
+                     'skills/interrogate/references/reviewer-prompt.md',
+                     'skills/principle-prove-it-works/SKILL.md',
+                     'skills/poteto-mode/playbooks/feature.md'):
+        path = pstack / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text('Synthetic instructions for orchestration tests.\n')
+    monkeypatch.setattr(m, 'PSTACK', pstack)
     m.initialize(time.time()+120)
     monkeypatch.setattr(m, 'select_workflow', lambda summary, **kw: select_workflow(summary,
         allowed_workflows=list(m.WORKFLOWS), client=None, explicit_workflow='feature'))

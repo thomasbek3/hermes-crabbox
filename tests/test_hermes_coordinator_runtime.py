@@ -78,7 +78,8 @@ def configured(tmp_path,monkeypatch):
     taskdir=tmp_path/'task';taskdir.mkdir()
     rt=HermesCoordinatorRuntime(dict(root=tmp_path/'workspaces',image=IMAGE,test_path_workspace=True,
         hermes_source_root=source,hermes_grok_auth=auth,hermes_journal_root=tmp_path/'journal',
-        docker_socket=socket_path,coordinator_uid=os.geteuid(),approved_mount_roots=[tmp_path],approved_writable_mount_roots=[tmp_path]))
+        docker_socket=socket_path,coordinator_uid=os.geteuid(),coordinator_gid=960,
+        docker_gid=966,tool_gid=1000,tool_shared_gid=959,approved_mount_roots=[tmp_path],approved_writable_mount_roots=[tmp_path]))
     attempt=str(uuid.uuid4());session=str(uuid.uuid4())
     work=rt.make_workspace(session);native=rt.native_state(session)
     task=dict(schema_version=1,attempt_id=attempt,generation=1,session_id=session,runtime_owner=rt.owner,

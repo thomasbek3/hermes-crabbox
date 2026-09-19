@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Trusted single-child execution driver
 
 `drive_prepared_child` composes the existing RoleScheduler, PreparedStage, CallerSpec, RoutedRuntime and bounded result collector. It is a controller API for trusted, already-provisioned objects. It has no HTTP endpoint and does not accept model-supplied filesystem/runtime identities.

@@ -1,0 +1,44 @@
+# Standalone public-source worker build. No pre-existing local images or user homes.
+FROM python:3.11.13-slim-bookworm@sha256:86adf8dbadc3d6e82ee5dd2c74bec2e1c2467cdad47886280501df722372d2e1
+ARG HERMES_REV=3b0e392e5a6922034feccac5771041ac78467757
+ARG PSTACK_REV=204e77a7a011c4613dc9c4913a481d77cc0ebe54
+ENV DEBIAN_FRONTEND=noninteractive PLAYWRIGHT_BROWSERS_PATH=/opt/playwright UV_PROJECT_ENVIRONMENT=/opt/hermes/venv UV_LINK_MODE=copy
+RUN apt-get update && apt-get install -y --no-install-recommends git curl ca-certificates openssh-server openssh-client sudo rsync bash build-essential \
+    tigervnc-standalone-server tigervnc-tools xfce4-session xfwm4 xfce4-panel xfdesktop4 xfce4-terminal xfconf xfce4-settings xauth dbus-x11 \
+    x11-xserver-utils xterm scrot ffmpeg xdotool wmctrl xclip xsel fonts-dejavu-core fonts-liberation iproute2 openssl arc-theme procps netcat-openbsd novnc websockify \
+    && rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir uv==0.12.15
+RUN git init /opt/hermes/source && git -C /opt/hermes/source remote add origin https://github.com/NousResearch/hermes-agent.git \
+    && git -C /opt/hermes/source fetch --depth=1 origin "$HERMES_REV" && git -C /opt/hermes/source checkout --detach FETCH_HEAD \
+    && test "$(git -C /opt/hermes/source rev-parse HEAD)" = "$HERMES_REV" \
+    && git init /opt/hermes/trusted-plugins/pstack && git -C /opt/hermes/trusted-plugins/pstack remote add origin https://github.com/jmporchet/pstack-hermes.git \
+    && git -C /opt/hermes/trusted-plugins/pstack fetch --depth=1 origin "$PSTACK_REV" && git -C /opt/hermes/trusted-plugins/pstack checkout --detach FETCH_HEAD \
+    && test "$(git -C /opt/hermes/trusted-plugins/pstack rev-parse HEAD)" = "$PSTACK_REV"
+RUN uv sync --project /opt/hermes/source --python /usr/local/bin/python --no-python-downloads --frozen --no-dev --no-default-groups --extra anthropic
+RUN uv pip install --python /opt/hermes/venv/bin/python playwright==1.63.0 \
+    && /opt/hermes/venv/bin/python -m playwright install --with-deps chromium
+ARG JOB_UID=1001
+ARG JOB_GID=1001
+RUN mkdir -p /opt/cloud-tools /opt/cloudworkbench /opt/hermes/empty-bundled /run/sshd /workspace /state /run/task \
+    && groupadd --gid "$JOB_GID" cloud-job && useradd --uid "$JOB_UID" --gid "$JOB_GID" --create-home --shell /bin/bash crabbox \
+    && rm -f /etc/ssh/ssh_host_*
+COPY src/cloudworkbench /opt/cloudworkbench
+COPY integrations/hermes-pr-evidence /opt/hermes/trusted-plugins/cloud-evidence
+COPY deploy/BROWSER.crabbox-desktop.md /opt/cloud-tools/BROWSER.md
+COPY deploy/crabbox-init.sh /usr/local/bin/crabbox-init
+COPY deploy/agent-browser-container /usr/local/bin/agent-browser
+COPY LICENSES /opt/cloud-tools/LICENSES
+COPY LICENSE THIRD_PARTY_NOTICES.md /opt/cloud-tools/
+RUN curl --fail --location --retry 3 https://github.com/vercel-labs/agent-browser/releases/download/v0.38.1/agent-browser-linux-x64 -o /opt/cloud-tools/agent-browser-native \
+    && echo '5100149a1903211c889de4e545bf36d90803740cea4f99aa22651649f9205ea1  /opt/cloud-tools/agent-browser-native' | sha256sum --check \
+    && chmod 0755 /opt/cloud-tools/agent-browser-native /usr/local/bin/agent-browser /usr/local/bin/crabbox-init \
+    && /opt/hermes/venv/bin/python -c 'from playwright.sync_api import sync_playwright; from pathlib import Path; p=sync_playwright().start(); Path("/opt/cloud-tools/chromium-path").write_text(p.chromium.executable_path); p.stop()' \
+    && printf '%s\n' '#!/bin/sh' 'exec "$(cat /opt/cloud-tools/chromium-path)" --no-sandbox --disable-dev-shm-usage "$@"' > /usr/local/bin/chromium \
+    && chmod 0755 /usr/local/bin/chromium \
+    && chmod -R a+rX,go-w /opt/hermes /opt/cloud-tools /opt/playwright /opt/cloudworkbench \
+    && /opt/hermes/venv/bin/python -c 'import importlib.metadata as m; assert m.version("hermes-agent")=="0.21.3"' \
+    && agent-browser --version
+ENV PATH=/opt/hermes/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+WORKDIR /workspace
+ENTRYPOINT ["/usr/local/bin/crabbox-init"]
+CMD ["/usr/sbin/sshd", "-D"]

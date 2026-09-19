@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Native Hermes inference codec checkpoint
 
 `hermes_inference_protocol.py` is a pure bounded codec. It does not listen, execute tools, select credentials, grant reuse, or authorize provider work. The controller must bind a fresh one-shot inference transport to a current authorization/lease and complete outer container cleanup before another credential use. Buffered SSE is emitted only after a validated CLI result; it is not a live token stream.

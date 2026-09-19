@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Release B implementation plan
 
 Source audit: 2026-09-17. This is a read-only audit and remaining-work specification, not implementation, deployment authorization, or a Release B pass. The concurrent Release A auth/retention/image rollout has its own source freeze and receipts. Recheck the bound deployed revision before building on it. The full-spec checkpoint in SPEC-FIRST-CONTRACT.md now precedes further implementation. The source-status table below is a historical audit, not a live deployment inventory.
@@ -8,7 +13,7 @@ Release B is **P16–P19 plus P22 dashboard/visual operations**, on top of every
 
 This plan does not expand into public signup, a hosted cluster, unrestricted research browsing, personal desktop control, notifications, additional adapters, or hostile multi-tenant guarantees. It does not drop the required interactive terminal/isolated desktop, environment builder, approvals UI, Git/PR integration or full browser benchmark. Phase 2 preview/browser work and Phase 3 terminal/desktop work are sequential parts of B, not excuses to call B done after a preview.
 
-Authority remains scoped to Thomas's existing build request. After the full-spec checkpoint closes, ordinary local implementation, fixture tests, approved-image preparation and isolated synthetic verification can proceed. Real credential grants, external repository writes, login identities, new externally managed domains and production cutover need their exact scope resolved from existing authorization or an owner choice; prepare the concrete target first. Preserve legacy v1, the personal Moonlight desktop, other jobs and current network policy during this planning unit.
+Authority remains scoped to the operator's existing build request. After the full-spec checkpoint closes, ordinary local implementation, fixture tests, approved-image preparation and isolated synthetic verification can proceed. Real credential grants, external repository writes, login identities, new externally managed domains and production cutover need their exact scope resolved from existing authorization or an owner choice; prepare the concrete target first. Preserve legacy v1, the personal Moonlight desktop, other jobs and current network policy during this planning unit.
 
 ## Current implementation versus required capability
 
@@ -133,7 +138,7 @@ Exit T12 barrier: instrumented agent/tool/app writers show no unauthorized agent
 
 Depends on B03/B07 and B05 UI. Complete both transports; screenshot viewing alone does not satisfy P18.
 
-1. Browser/desktop observation runs in a session-isolated display/profile, not Thomas's Moonlight/X11/Wayland desktop. Publish only through the authenticated bounded gateway. Read-only observers get no keyboard/mouse, clipboard, upload or terminal authority.
+1. Browser/desktop observation runs in a session-isolated display/profile, not the operator's Moonlight/X11/Wayland desktop. Publish only through the authenticated bounded gateway. Read-only observers get no keyboard/mouse, clipboard, upload or terminal authority.
 2. A separate write lease gates every browser action/input frame at the worker, not merely the initial WebSocket upgrade. Verify current lease id, audience, epoch/generation and expiry; reject queued late packets after release. Human login assistance stops agent observation/control as required by the lease and uses only the selected test identity/profile.
 3. Terminal attaches to a dedicated bounded PTY/companion under the job UID and authorized workspace. No host shell, Docker socket, provider-auth mount, arbitrary container target or privileged user. Session working directory/command selection comes from trusted policy; input is data to the authorized PTY, not a controller-shell string.
 4. Bound PTY output/frame size, resize messages, connection count, clipboard/file transfer, idle time and scrollback. Restrict potentially dangerous terminal escape/clipboard behavior. Redact/export policy is separate from interactive visibility; never persist typed credentials as ordinary event logs.

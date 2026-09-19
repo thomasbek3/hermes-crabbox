@@ -1,0 +1,86 @@
+#!/usr/bin/env python3
+"""Run inside network-none candidate: hashes, CLI, pstack and synthetic local HTTP tool loop."""
+
+# Archived one-off operation; use the supported host installer instead.
+raise SystemExit('Archived operation is disabled. See docs/AGENT-SETUP.md for supported installation.')
+
+import hashlib,importlib.metadata,io,json,os,subprocess,sys,threading,time
+from pathlib import Path
+from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
+
+started=time.monotonic()
+for key,value in {'HOME':'/tmp/probe-home','HERMES_HOME':'/tmp/probe-hermes','CODEX_HOME':'/tmp/probe-codex',
+ 'CLAUDE_CONFIG_DIR':'/tmp/probe-claude','HERMES_BUNDLED_PLUGINS':'/opt/hermes/empty-bundled',
+ 'ANTHROPIC_API_KEY':'SYNTHETIC_LOCAL_ONLY_NOT_A_REAL_CREDENTIAL','HERMES_INTERACTIVE':'0',
+ 'TERMINAL_CWD':'/tmp','HERMES_ENABLE_PROJECT_PLUGINS':'0'}.items():os.environ[key]=value
+for key in ('HOME','HERMES_HOME','CODEX_HOME','CLAUDE_CONFIG_DIR'):Path(os.environ[key]).mkdir()
+manifest_path=Path('/opt/hermes/source-manifest.json');manifest=json.loads(manifest_path.read_text())
+for name,digest in manifest['files_sha256'].items():
+ prefix,relative=name.split('/',1)
+ path=(Path('/opt/hermes/source') if prefix=='hermes' else Path('/opt/hermes/trusted-plugins/pstack'))/relative
+ assert path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest()==digest,name
+ assert not os.access(path,os.W_OK),name
+versions={name:importlib.metadata.version(name) for name in ('hermes-agent','anthropic')}
+assert versions=={'hermes-agent':'0.21.3','anthropic':'0.87.0'}
+check=subprocess.run(['/usr/local/bin/uv','pip','check','--python','/opt/hermes/venv/bin/python'],capture_output=True,text=True,timeout=15)
+assert check.returncode==0,check.stderr[-1000:]
+home=Path(os.environ['HERMES_HOME']);(home/'plugins').mkdir();(home/'plugins'/'pstack').symlink_to('/opt/hermes/trusted-plugins/pstack')
+(home/'config.yaml').write_text('security:\n  tirith_enabled: false\nplugins:\n  enabled: [pstack]\nmodel:\n  default: synthetic-local-probe\n  provider: anthropic\nagent:\n  max_turns: 3\nterminal:\n  backend: local\n  cwd: /tmp\n')
+from hermes_cli.plugins import get_plugin_manager
+manager=get_plugin_manager();manager.discover_and_load()
+skills=manager.list_plugin_skills('pstack');assert 'poteto-mode' in skills and len(skills)>20
+help_result=subprocess.run(['/opt/hermes/venv/bin/hermes','chat','--help'],capture_output=True,text=True,timeout=20)
+assert help_result.returncode==0 and '--query-file' in help_result.stdout and 'stream-json' in help_result.stdout
+Path('/tmp/probe.txt').write_text('SYNTHETIC_FILE_CONTENT\n')
+Path('/tmp/query.txt').write_text('Read /tmp/probe.txt using read_file, then respond with SYNTHETIC_FILE_TOOL_OK. This is an isolated synthetic transport test.')
+requests=[];sent_tool=False
+class Handler(BaseHTTPRequestHandler):
+ def log_message(self,*args):pass
+ def do_POST(self):
+  global sent_tool
+  body=json.loads(self.rfile.read(int(self.headers['Content-Length'])))
+  requests.append({'path':self.path,'model':body.get('model'),'stream':body.get('stream',False),
+                   'tool_names':[tool.get('name') for tool in body.get('tools',[])],
+                   'has_fixture_tool_result':'SYNTHETIC_FILE_CONTENT' in json.dumps(body.get('messages',[]))})
+  if self.path.endswith('/count_tokens'):
+   data=json.dumps({'input_tokens':32}).encode();self.send_response(200);self.send_header('Content-Type','application/json');self.end_headers();self.wfile.write(data);return
+  if self.path.split('?')[0]!='/v1/messages':
+   self.send_response(404);self.send_header('Content-Type','application/json');self.end_headers();self.wfile.write(b'{"error":"synthetic_endpoint_not_supported"}');return
+  tool=not sent_tool and 'read_file' in requests[-1]['tool_names']
+  if tool:sent_tool=True
+  block={'type':'tool_use','id':'toolu_synthetic','name':'read_file','input':{'path':'/tmp/probe.txt'}} if tool else {'type':'text','text':'SYNTHETIC_FILE_TOOL_OK'}
+  message={'id':'msg_synthetic','type':'message','role':'assistant','model':'synthetic-local-probe','content':[block],
+           'stop_reason':'tool_use' if tool else 'end_turn','stop_sequence':None,'usage':{'input_tokens':32,'output_tokens':10}}
+  self.send_response(200)
+  if body.get('stream'):
+   self.send_header('Content-Type','text/event-stream');self.end_headers()
+   def emit(kind,data):self.wfile.write(('event: '+kind+'\ndata: '+json.dumps(data)+'\n\n').encode());self.wfile.flush()
+   emit('message_start',{'type':'message_start','message':{**message,'content':[],'stop_reason':None,'usage':{'input_tokens':32,'output_tokens':0}}})
+   initial={**block,'input':{}} if tool else {'type':'text','text':''}
+   emit('content_block_start',{'type':'content_block_start','index':0,'content_block':initial})
+   delta={'type':'input_json_delta','partial_json':json.dumps(block['input'])} if tool else {'type':'text_delta','text':block['text']}
+   emit('content_block_delta',{'type':'content_block_delta','index':0,'delta':delta})
+   emit('content_block_stop',{'type':'content_block_stop','index':0})
+   emit('message_delta',{'type':'message_delta','delta':{'stop_reason':message['stop_reason'],'stop_sequence':None},'usage':{'output_tokens':10}})
+   emit('message_stop',{'type':'message_stop'})
+  else:
+   self.send_header('Content-Type','application/json');self.end_headers();self.wfile.write(json.dumps(message).encode())
+server=ThreadingHTTPServer(('127.0.0.1',0),Handler);threading.Thread(target=server.serve_forever,daemon=True).start()
+os.environ['ANTHROPIC_BASE_URL']='http://127.0.0.1:'+str(server.server_port)
+argv=['/opt/hermes/venv/bin/hermes','chat','--query-file','/tmp/query.txt','--format','stream-json','--oneshot',
+      '--provider','anthropic','--model','synthetic-local-probe','--reasoning','none','--toolsets','file']
+result=subprocess.run(argv,cwd='/tmp',capture_output=True,text=True,timeout=50)
+server.shutdown()
+events=[];invalid=[]
+for line in result.stdout.splitlines():
+ try:events.append(json.loads(line))
+ except ValueError:invalid.append(line)
+terminal=[event for event in events if event.get('type')=='result']
+receipt={'uid':os.getuid(),'versions':versions,'manifest_sha256':hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
+ 'source_files_verified':len(manifest['files_sha256']),'source_write_access':False,'dependency_check':check.stderr.strip(),
+ 'pstack_version':'0.14.5','pstack_skills':skills,'cli_help_verified':True,'synthetic_transport':True,
+ 'real_provider_calls':False,'backend_auth_qualified':False,'fixture_tirith_enabled':False,'cli_argv':argv,'cli_exit':result.returncode,
+ 'events':events,'invalid_stdout_lines':invalid,'stderr':result.stderr[-8000:],'requests':requests,'seconds':time.monotonic()-started}
+receipt['status']='passed' if result.returncode==0 and not invalid and len(terminal)==1 and terminal[0].get('exit_code')==0 and any(e.get('type')=='tool_result' and e.get('name')=='read_file' for e in events) and any(r['has_fixture_tool_result'] for r in requests) and 'SYNTHETIC_FILE_TOOL_OK' in terminal[0].get('text','') else 'failed'
+print(json.dumps(receipt,indent=2))
+raise SystemExit(0 if receipt['status']=='passed' else 1)

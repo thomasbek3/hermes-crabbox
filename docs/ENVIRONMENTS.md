@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Immutable environment registry (P14 foundation)
 
 `cloudworkbench.environments` is an operator-only registry. It does not accept end-user URLs, commands or host paths. Registering and qualifying a candidate never change the active environment. Activation requires the previously observed active version, and only a qualified candidate can win that compare-and-swap.

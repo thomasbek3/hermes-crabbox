@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # TypeSafe HTTP transport
 
 `cloudworkbench.jev_client.JevClient(api_key, timeout_seconds=10).evaluate(payload)` returns a JSON object. `JevError.code` is a fixed sanitized error code. The constructor accepts an in-memory server-side credential; it never loads credentials, logs bodies/keys, or exposes them in repr. Keep the client in the trusted controller, never browser/job configuration.

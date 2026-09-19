@@ -159,8 +159,11 @@ def test_directory_swap_does_not_redirect_file_read(plugin, monkeypatch):
 
 
 def test_actual_pinned_hermes_registration_when_runtime_available(tmp_path):
-    source = ROOT.parent / 'work' / 'hermes-pstack-image-context' / 'hermes'
-    python = Path('/Users/thomasbekkers/.hermes/hermes-agent/venv/bin/python')
+    import os
+    if not os.environ.get('CWB_HERMES_SOURCE') or not os.environ.get('CWB_HERMES_DEPENDENCY_PYTHON'):
+        pytest.skip('Set CWB_HERMES_SOURCE and CWB_HERMES_DEPENDENCY_PYTHON for the optional pinned runtime test')
+    source = Path(os.environ['CWB_HERMES_SOURCE'])
+    python = Path(os.environ['CWB_HERMES_DEPENDENCY_PYTHON'])
     if not source.is_dir() or not python.is_file():
         pytest.skip('Pinned source and local Hermes dependency runtime are not present')
     script = '''

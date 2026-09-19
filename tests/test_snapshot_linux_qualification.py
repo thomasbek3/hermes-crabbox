@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 
-PATH=Path(__file__).resolve().parents[1]/'scripts/qualify-snapshot-docker-linux.py'
+PATH=Path(__file__).resolve().parents[1]/'scripts/legacy/qualify-snapshot-docker-linux.py'
 spec=importlib.util.spec_from_file_location('snapshot_linux_qualification',PATH)
 module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
 
@@ -17,7 +17,7 @@ module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
 def bundle(tmp_path,monkeypatch):
     def forbidden(*args,**kwargs):raise AssertionError('prepare must not execute a process')
     monkeypatch.setattr(module.subprocess,'run',forbidden)
-    return module.prepare(PATH.parents[1],tmp_path/'prepared.json','sha256:'+'a'*64)
+    return module.prepare(PATH.parents[2],tmp_path/'prepared.json','sha256:'+'a'*64)
 
 
 def test_prepare_is_offline_and_binds_exact_source_set(bundle):
@@ -41,14 +41,14 @@ def test_bundle_drift_refused(bundle,change):
 
 def test_prepared_destination_never_overwritten(bundle,tmp_path):
     path=tmp_path/'existing';path.write_text('keep')
-    with pytest.raises(FileExistsError):module.prepare(PATH.parents[1],path,bundle['base_image'])
+    with pytest.raises(FileExistsError):module.prepare(PATH.parents[2],path,bundle['base_image'])
     assert path.read_text()=='keep'
 
 
 def test_source_closure_imports_in_isolated_local_package(tmp_path):
     package=tmp_path/'cloudworkbench';package.mkdir()
     for name in module.MODULES:
-        (package/name).write_bytes((PATH.parents[1]/'src/cloudworkbench'/name).read_bytes())
+        (package/name).write_bytes((PATH.parents[2]/'src/cloudworkbench'/name).read_bytes())
     script="import sys;sys.path.insert(0,sys.argv[1]);from cloudworkbench.snapshot_provider_docker import SnapshotProviderDocker;from cloudworkbench.provider_dispatch import ProviderDispatch;from cloudworkbench.store import Store"
     result=subprocess.run([sys.executable,'-I','-c',script,str(tmp_path)],capture_output=True,text=True,timeout=10)
     assert result.returncode==0,result.stderr
@@ -57,7 +57,7 @@ def test_source_closure_imports_in_isolated_local_package(tmp_path):
 def good_receipt(bundle):
     output={'fixture_only':True,'provider_calls':False,'uid':958,'gid':959,'source_uid':959,
             'source_gid':959,'mode':0o440,'sha256':'b'*64,'write_errno':30,'chmod_errno':30}
-    return {'run_id':bundle['run_id'],'host':'omarchy','source_hashes':bundle['hashes'],
+    return {'run_id':bundle['run_id'],'host':'archived-worker.invalid','source_hashes':bundle['hashes'],
             'base_image':bundle['base_image'],'harness_sha256':bundle['harness_sha256'],
             'passed':True,'provider_calls':False,'real_credentials':False,
             'services_before':{unit:{'ActiveState':'active','MainPID':123+i} for i,unit in enumerate(module.SERVICES)},
@@ -107,9 +107,9 @@ def test_cleanup_rejects_unrelated_object_and_requires_exact_scope():
     with pytest.raises(ValueError):module.owned_object(changed,scope,obj['Image'])
 
 
-def test_cli_requires_explicit_mode_without_connecting():
+def test_archived_cli_refuses_without_connecting():
     result=subprocess.run([sys.executable,str(PATH)],capture_output=True,text=True,timeout=5)
-    assert result.returncode==2 and 'required' in result.stderr
+    assert result.returncode != 0 and 'Archived operation is disabled' in result.stderr
 
 
 def test_fallback_selects_request_within_shared_reservation():

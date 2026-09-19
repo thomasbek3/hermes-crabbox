@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Hermes inference transport foundation
 
 This is a local, one-request subprocess primitive, not an activated provider or service. `InferenceTransport(PinnedCLI(...), home=private_home, scratch=private_scratch).run(request, cancel=event)` returns `InferenceResult`. It never executes the returned tool calls. Hermes retains the tool loop, transcript and tool-result correlation. The caller selects a preapproved immutable profile; this module neither chooses a model nor implements fallback, retry, billing or auth.

@@ -1,10 +1,15 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Hermes-first runtime: source audit and minimal contract
 
 2026-09-17 read-only audit. This supersedes the direct-CLI runtime direction for **new development**, not the immutable identity of existing jobs. No provider calls, credentials/configuration values, legacy workspace contents, or personal auth stores were read. No runtime, image, service, or personal profile changed. Existing direct-Claude jobs and their verified artifacts remain historical direct-Claude jobs.
 
 ## Verified installation and evidence
 
-Omarchy `/home/thomas/.hermes/hermes-agent` and this Mac's `/Users/thomasbekkers/.hermes/hermes-agent` are at commit `3b0e392e5a6922034feccac5771041ac78467757`, package version `0.21.3`. Omarchy's tracked checkout is clean. `/home/thomas/.local/bin/hermes` is a shell launcher which clears PYTHONPATH/PYTHONHOME and executes the checkout's `venv/bin/python` plus `hermes` entrypoint. The source fingerprints are recorded in `evidence/hermes-runtime-source-audit.json` and `evidence/hermes-omarchy-install-audit.json`; common inspected source files match across hosts.
+Omarchy `/home/operator/.hermes/hermes-agent` and this Mac's `/Users/operator/.hermes/hermes-agent` are at commit `3b0e392e5a6922034feccac5771041ac78467757`, package version `0.21.3`. Omarchy's tracked checkout is clean. `/home/operator/.local/bin/hermes` is a shell launcher which clears PYTHONPATH/PYTHONHOME and executes the checkout's `venv/bin/python` plus `hermes` entrypoint. The source fingerprints are recorded in `evidence/hermes-runtime-source-audit.json` and `evidence/hermes-omarchy-install-audit.json`; common inspected source files match across hosts.
 
 The legacy Dockerfile installs `hermes-agent[all]` without a package version, then includes a third-party `claude-cli` plugin and Go `claude-bridge`. Its source is **not** an immutable package/version qualification for the existing image. This source audit did not start an image process. The parent subsequently ran an isolated metadata-only image probe: `evidence/hermes-image-audit.json` reports Hermes distribution0.19.0 and Python3.13.15 at `/opt/uv/tools/hermes-agent/bin/python` in f1b15, with no network/mounts/credentials/inference and no labeled leftovers. Host0.21.3 source must not be treated as the installed image version. Our current hardened image Dockerfile explicitly removes `/usr/local/bin/claude-bridge`; therefore this prior bridge deployment cannot be assumed available in the new image. Existing image IDs remain untouched.
 

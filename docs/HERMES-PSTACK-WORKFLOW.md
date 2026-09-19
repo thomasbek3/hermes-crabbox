@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # First Hermes + pstack workflow
 
 This is the first integration target after the full-spec checkpoint closes, not a deployed capability. See [Full-spec baseline](SPEC-FIRST-CONTRACT.md). It preserves the full platform spec; it does not replace Release A/B/C with a routing demonstration.
@@ -20,11 +25,11 @@ The trusted process plan records requested configuration. The actual Hermes runt
 
 ## Requested role policy
 
-Thomas's Cursor pstack sheet provides the desired division: Grok for implementation/exploration, Fable for judgment/prose, and mixed Fable/Grok/Opus panels with a different-family cross-judge where possible. Cursor model slugs are desired aliases only. Resolve native model IDs, supported effort and authorized account transport before producing active Hermes profiles. `auto`/`inherit-parent` resolves the exact frozen parent route. The separate Mini Codex gpt-5.6-sol/high lane remains unchanged.
+the operator's Cursor pstack sheet provides the desired division: Grok for implementation/exploration, Fable for judgment/prose, and mixed Fable/Grok/Opus panels with a different-family cross-judge where possible. Cursor model slugs are desired aliases only. Resolve native model IDs, supported effort and authorized account transport before producing active Hermes profiles. `auto`/`inherit-parent` resolves the exact frozen parent route. The separate Mini Codex gpt-5.6-sol/high lane remains unchanged.
 
 ## Current evidence and next steps
 
-- Pinned pstack plugin doctor and50 namespaced skill resolutions pass in an isolated real Hermes plugin runtime: [registration receipt](../evidence/pstack-hermes-registration.json) and [doctor receipt](../evidence/pstack-hermes-doctor.txt). No global install or cloud activation.
+- Pinned pstack plugin doctor and50 namespaced skill resolutions pass in an isolated real Hermes plugin runtime: registration receipt (private historical record, not distributed) and doctor receipt (private historical record, not distributed). No global install or cloud activation.
 - Local RoleRouter preserves panel cardinality, records effective profile provenance and refuses unresolved/unready routes. Synthetic tests are not model availability evidence.
 - Hermes LaunchPlan/parser foundation is under Fable review. Its initial safe-mode configuration intentionally disables plugin loading, so it is not yet the trusted pstack profile.
 - An unactivated candidate image was built from pinned Hermes0.21.3 source and pstack source; its synthetic tool roundtrip is protocol evidence only. The prior cloud image contains Hermes0.19.0 and cannot stand in for this source pin.

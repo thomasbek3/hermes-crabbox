@@ -1,0 +1,129 @@
+#!/usr/bin/env python3
+"""Root-only 64 MiB canary; resume requires an empty proven synthetic volume."""
+
+# Archived one-off operation; use the supported host installer instead.
+raise SystemExit('Archived operation is disabled. See docs/AGENT-SETUP.md for supported installation.')
+
+import datetime
+import hashlib
+import json
+import os
+from pathlib import Path
+import pwd
+import re
+import subprocess
+import sys
+import uuid
+
+ROOT = Path('/var/lib/cloud-workbench/workspaces')
+HELPER = Path('/usr/local/libexec/cloud-workbench-volume')
+
+
+def run(argv, check=True, cwd=None):
+    return subprocess.run(argv, check=check, capture_output=True, text=True, timeout=30, cwd=cwd)
+
+
+def services():
+    result = {}
+    for name in ('cloud-workbench-api', 'cloud-workbench-worker'):
+        data = run(['systemctl', 'show', name, '--property=ActiveState,MainPID,ExecMainStartTimestampMonotonic']).stdout
+        result[name] = dict(line.split('=', 1) for line in data.splitlines())
+    # PID identity only; do not record arguments, environment or credentials.
+    result['legacy_processes'] = []
+    for proc in Path('/proc').glob('[0-9]*'):
+        try:
+            args = (proc / 'cmdline').read_bytes().split(b'\0')
+            if any(arg.endswith(b'/cloudd.py') or arg == b'cloudd.py' for arg in args):
+                result['legacy_processes'].append({'pid': int(proc.name), 'start_ticks': (proc / 'stat').read_text().rsplit(')', 1)[1].split()[19]})
+        except (FileNotFoundError, PermissionError, ProcessLookupError):
+            pass
+    return result
+
+
+def containers_referencing(target):
+    ids = run(['docker', 'ps', '--all', '--quiet', '--no-trunc']).stdout.split()
+    refs = []
+    for cid in ids:
+        # Inspect in memory; only expose ID, never Config.Env or command contents.
+        obj = json.loads(run(['docker', 'inspect', cid]).stdout)[0]
+        for mount in obj.get('Mounts', []):
+            source = mount.get('Source', '')
+            if source == str(target) or source.startswith(str(target) + '/'):
+                refs.append(cid)
+    return sorted(set(refs))
+
+
+def mount_info(target, backing):
+    item = json.loads(run(['findmnt', '--json', '--mountpoint', str(target), '--output', 'SOURCE,TARGET,FSTYPE,OPTIONS']).stdout)['filesystems'][0]
+    assert item['target'] == str(target)
+    assert item['fstype'] == 'ext4' and re.fullmatch(r'/dev/loop[0-9]+', item['source'])
+    assert {'nosuid', 'nodev', 'rw'} <= set(item['options'].split(','))
+    actual = run(['losetup', '--noheadings', '--output', 'BACK-FILE', item['source']]).stdout.strip()
+    assert actual == str(backing)
+    return {**item, 'backing_file': actual, 'backing_bytes': backing.stat().st_size}
+
+
+def no_users(target):
+    refs = containers_referencing(target)
+    result = run(['fuser', '--mount', '--ismountpoint', str(target)], check=False)
+    # 1 + empty stdout means no processes; fuser errors must not become a pass.
+    assert result.returncode == 1 and not result.stdout.strip() and not result.stderr.strip(), 'workspace process references or fuser error'
+    assert not refs, 'container references synthetic mount'
+    return {'container_references': refs, 'fuser_exit': result.returncode, 'fuser_output_empty': True}
+
+
+def main():
+    assert os.geteuid() == 0 and os.uname().nodename == 'archived-worker.invalid'
+    assert HELPER.resolve() == HELPER and HELPER.stat().st_uid == 0 and not HELPER.stat().st_mode & 0o022
+    account = pwd.getpwnam('cloud-job')
+    resume = len(sys.argv) == 3 and sys.argv[1] == '--resume-empty-qualifier'
+    assert len(sys.argv) == 1 or resume
+    session = sys.argv[2] if resume else 'opsremount-' + uuid.uuid4().hex
+    assert re.fullmatch(r'opsremount-[a-f0-9]{32}', session)
+    target, backing = ROOT / session, ROOT / '.volumes' / (session + '.img')
+    if resume:
+        assert target.resolve() == target and target.stat().st_uid == 0
+        assert json.loads((ROOT / '.volumes' / (session + '.json')).read_text()) == {'session': session, 'bytes': 64*1024*1024, 'uid': account.pw_uid, 'gid': account.pw_gid}
+        mount_info(target, backing)
+        no_users(target)
+        assert not any((target / 'native').iterdir())
+        entries = list((target / 'work').iterdir())
+        assert len(entries) <= 1
+        for p in entries:
+            assert p.name == 'remount-canary.txt' and not p.is_symlink() and p.is_file() and p.stat().st_size == 0 and p.stat().st_uid == account.pw_uid
+    else:
+        assert not target.exists() and not backing.exists()
+    assert account.pw_uid != pwd.getpwnam('example-operator').pw_uid
+    before = services()
+    receipt = {'host': os.uname().nodename, 'started_at': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'session_id': session, 'helper_sha256': hashlib.sha256(HELPER.read_bytes()).hexdigest(), 'driver_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), 'before_services': before, 'passed': False, 'resumed_empty_synthetic_qualifier': resume, 'scope': 'Synthetic unmount/remount only; no host reboot, suspend, network loss or LUKS unlock proof.'}
+    args = [str(HELPER), session, '64', str(account.pw_uid), str(account.pw_gid)]
+    receipt['created'] = json.loads(run(args).stdout)
+    receipt['before_mount'] = mount_info(target, backing)
+    canary = target / 'work' / 'remount-canary.txt'
+    payload = 'synthetic-remount-' + uuid.uuid4().hex + '\n'
+    writer = 'import os,sys;from pathlib import Path;p=Path(sys.argv[1]);f=p.open("w");f.write(sys.argv[2]);f.flush();os.fsync(f.fileno());f.close()'
+    run(['runuser', '--user', 'cloud-job', '--', 'python3', '-c', writer, 'work/remount-canary.txt', payload], cwd=target)
+    receipt['canary_uid'] = canary.stat().st_uid
+    receipt['expected_sha256'] = hashlib.sha256(payload.encode()).hexdigest()
+    assert hashlib.sha256(canary.read_bytes()).hexdigest() == receipt['expected_sha256']
+    receipt['pre_unmount_quiescence'] = no_users(target)
+    # Re-prove exact mount and backing immediately before the only unmount.
+    mount_info(target, backing)
+    run(['umount', '--', str(target)])
+    receipt['unmounted'] = run(['findmnt', '--mountpoint', str(target)], check=False).returncode == 1
+    assert receipt['unmounted'] and not any(target.iterdir())
+    receipt['remounted'] = json.loads(run(args).stdout)
+    receipt['after_mount'] = mount_info(target, backing)
+    receipt['actual_sha256'] = hashlib.sha256(canary.read_bytes()).hexdigest()
+    receipt['after_services'] = services()
+    receipt['final_quiescence'] = no_users(target)
+    receipt['checks'] = {'canary_retained': receipt['actual_sha256'] == receipt['expected_sha256'], 'job_uid_distinct': receipt['canary_uid'] == account.pw_uid != pwd.getpwnam('example-operator').pw_uid, 'same_backing': receipt['before_mount']['backing_file'] == receipt['after_mount']['backing_file'], 'exact_64_mib': backing.stat().st_size == 64 * 1024 * 1024, 'host_service_identities_unchanged': before == receipt['after_services'], 'new_services_active': all(before[n]['ActiveState'] == 'active' for n in ('cloud-workbench-api', 'cloud-workbench-worker'))}
+    receipt['finished_at'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    receipt['retained_volume'] = str(target)
+    receipt['passed'] = all(receipt['checks'].values())
+    print(json.dumps(receipt, indent=2))
+    assert receipt['passed']
+
+
+if __name__ == '__main__':
+    main()

@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "hermes-crabbox": {
-      "url": "https://omarchy.tail0d5eb6.ts.net/mcp",
+      "url": "https://worker.example.ts.net/mcp",
       "headers": {
         "Authorization": "Bearer ${env:OMARCHY_CLOUD_TOKEN}"
       }

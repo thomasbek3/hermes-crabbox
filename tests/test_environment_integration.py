@@ -20,6 +20,8 @@ def enable_registry(setup,tmp_path):
                         'argv':['python3','/run/task/check.py'],'script_name':'check.py',
                         'script_source':str(script)}]
     runner.config['runtime'].update(image=runtime.image,cpus=1,memory_mib=1024,pids=128,workspace_mib=256)
+    # The fake represents this configured runtime, including its resource policy.
+    runtime.config.update(runner.config['runtime'])
     registry=EnvironmentRegistry(tmp_path/'environments.db')
     manifest=legacy_manifest('project','fixture-v1',project,runner.config['runtime'],
                              architecture='amd64',cli_versions={'python3':'3.13'},
@@ -126,8 +128,8 @@ def test_qualified_images_keep_recovery_and_followups_pinned(setup,tmp_path,monk
         gid=max(1,os.getgid()),approved_mount_roots=[str(runner.root/'tasks')],
         approved_writable_mount_roots=[str(tmp_path)],network_enabled=True,
         allowed_domains=['api.anthropic.com'],egress_image=gateway)
-    # The manifest policy remains the already-qualified named profile. Docker is
-    # replaced only at launch; cloned Runtime constructors and policy are real.
+    # The manifest policy remains the already-qualified named profile. Docker
+    # and its filesystem layout are synthetic; cloned constructors/policy are real.
     config['environment_network_profile']='none'
     backend.config=copy.deepcopy(config['runtime']);backend.egress_image=gateway
     runner.verifier=Runtime({**config['runtime'],'network_enabled':False,'workspace_readonly':True})
@@ -138,6 +140,8 @@ def test_qualified_images_keep_recovery_and_followups_pinned(setup,tmp_path,monk
         return base_launch(*args,**kwargs)
     backend.launch=lambda *args,**kwargs:capture(backend,*args,**kwargs)
     monkeypatch.setattr(Runtime,'launch',capture)
+    monkeypatch.setattr(Runtime,'make_workspace',lambda _runtime, sid: backend.make_workspace(sid))
+    monkeypatch.setattr(Runtime,'native_state',lambda _runtime, sid: backend.native_state(sid))
     registry.register({**manifest,'version':'fixture-v2','image_digest':new_image})
     registry.qualify('project','fixture-v2',passed)
     config['projects']['project']['environment_versions'].append('fixture-v2')

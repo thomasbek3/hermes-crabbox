@@ -1,11 +1,13 @@
 # Documentation
 
-[Repository home](../README.md) · [Downloads](https://github.com/thomasbek3/hermes-crabbox/releases/tag/v0.1.0-preview.1)
+[Repository home](../README.md) · [Downloads](https://github.com/thomasbek3/hermes-crabbox/releases/tag/v0.1.0-preview.2)
 
 ## Choose your path
 
 | I want to… | Start here |
 | --- | --- |
+| Have an agent set up host and caller | [Agent setup](AGENT-SETUP.md) |
+| Install a new worker computer | [Host installation](HOST-INSTALL.md) |
 | Connect Grokbot, Hermes, Codex, Claude, or another caller | [Quickstart](QUICKSTART.md) |
 | Give a worker a useful coding task | [Assignment template](../examples/task.md) |
 | Understand containers, workers, and routing | [Architecture](ARCHITECTURE.md) |

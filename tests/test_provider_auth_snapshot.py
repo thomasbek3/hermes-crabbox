@@ -338,7 +338,7 @@ def test_invalid_utf8_jwt_maps_to_fixed_auth_error(staging):
     assert not list(manager.root.iterdir())
 
 
-@pytest.mark.parametrize('path', ['/home/thomas/auth.json', '/Users/thomas/auth.json', '/root/auth.json'])
+@pytest.mark.parametrize('path', ['/home/example-operator/auth.json', '/Users/example-operator/auth.json', '/root/auth.json'])
 def test_personal_paths_rejected_even_explicitly_configured(staging, path):
     manager, spec, kwargs, config = staging
     config.update(source=Path(path), dedicated_root=Path(path).parent)

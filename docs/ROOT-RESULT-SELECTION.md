@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Default root result selection
 
 Default session ZIP and repository diff now select the latest session root. Schema1 uses generation ordering. After the scheduler migration, only `legacy` and `hermes_root` attempts participate, ordered by `root_sequence`; `hermes_child` attempts are excluded. A newer queued/running root does not fall back to an older terminal bundle. Diff selection requires a terminal selected root with delivery and likewise never borrows a child's patch.

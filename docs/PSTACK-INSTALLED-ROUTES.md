@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Installed route inventory — read-only
 
 Fresh SSH metadata is recorded in `evidence/pstack-installed-routes-readonly.json`. No inference or token values were read/printed. CLI login status concerns the host user; it is not permission to mount those personal credentials into cloud jobs.

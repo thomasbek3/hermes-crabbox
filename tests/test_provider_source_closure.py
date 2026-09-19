@@ -16,7 +16,7 @@ SCRIPTS = ('qualify-native-supervised-linux.py', 'qualify-supervised-provider-li
 
 
 def modules(script):
-    tree = ast.parse((ROOT / 'scripts' / script).read_text())
+    tree = ast.parse((ROOT / 'scripts/legacy' / script).read_text())
     return next(ast.literal_eval(node.value) for node in tree.body
                 if isinstance(node, ast.Assign) and any(
                     isinstance(target, ast.Name) and target.id == 'MODULES' for target in node.targets))
@@ -81,7 +81,7 @@ def test_provider_context_manifest_and_isolated_import(tmp_path):
     spec.loader.exec_module(module)
     destination = tmp_path / 'context'
     manifest = module.prepare(destination)
-    builder = ast.parse((ROOT / 'scripts/build-provider-candidate.py').read_text())
+    builder = ast.parse((ROOT / 'scripts/legacy/build-provider-candidate.py').read_text())
     expected = next(ast.literal_eval(node.value) for node in builder.body
                     if isinstance(node, ast.Assign) and any(
                         isinstance(target, ast.Name) and target.id == 'MODULES' for target in node.targets))

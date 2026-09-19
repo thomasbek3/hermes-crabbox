@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Legacy workspace import and opt-in compatibility
 
 This is a migration plan, not an executed import or cutover. The inventory was taken on the Omarchy laptop on 2026-09-17. The original service and files remain untouched.

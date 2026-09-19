@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Cloud role socket and native handlers
 
 This checkpoint connects the isolated cloud plugin's actual D8-patched native handlers through bounded HTTP over a per-attempt Unix socket to durable RoleBroker records. It is local source/fixture proof. No provider call, cloud image build, personal Hermes modification, Store/Runner/API wiring or deployment occurred. No real child scheduler runs. `cloud_get_role_results` currently returns a pending/blocked/rejected/linked receipt only; it must not be presented as completed child results.

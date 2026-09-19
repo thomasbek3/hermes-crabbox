@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Release C: provider coverage, integrations and notifications
 
 Normative expansion of SPEC P20–P21 and SPEC-FIRST-CONTRACT. Full scope remains required; account-dependent live gates can block a route without converting it to completed N/A. No installation or live change is performed by this document.
@@ -28,7 +33,7 @@ Outbox states pending, sending, confirmed, retryable_failure, delivery_unknown, 
 
 Payload includes safe task title, outcome/required action and private authenticated UI link; no credentials, raw transcripts, hidden reasoning, approval bearer links or sensitive artifact attachments by default. Link access still requires application auth. Follow-up turns create distinct event identities; a page reconnect cannot re-send old events. Revocation cancels queued messages, preserves audit metadata and never leaks connector secrets to the job.
 
-Acceptance: opt-out sends nothing; repeated terminal events produce one outbox item; restart during send reconciles; unknown delivery is not labeled delivered; destination change/revocation and cross-owner access denied; auth failure visibly undelivered. A real delivery/readback is required only after Thomas authorizes its exact destination; a mock receipt is not an external send. Grok 4.6/xhigh checkpoint review through call-grok precedes enabling the opted-in connector.
+Acceptance: opt-out sends nothing; repeated terminal events produce one outbox item; restart during send reconciles; unknown delivery is not labeled delivered; destination change/revocation and cross-owner access denied; auth failure visibly undelivered. A real delivery/readback is required only after the original operator authorizes its exact destination; a mock receipt is not an external send. Grok 4.6/xhigh checkpoint review through call-grok precedes enabling the opted-in connector.
 
 ## C closeout
 

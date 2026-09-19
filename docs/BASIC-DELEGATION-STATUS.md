@@ -1,7 +1,12 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Omarchy Crabbox desktop delegation — deployed 2026-09-18
 
-Current target: `omarchy`, the separate Intel MacBook Pro, `thomas@100.83.74.92`.
-API remains `https://omarchy.tail0d5eb6.ts.net`. New submissions from both Mac minis
+Current target: `omarchy`, the separate Intel MacBook Pro, `operator@worker.example.ts.net`.
+API remains `https://worker.example.ts.net`. New submissions from the original caller machines
 now default to `hermes-tasks` / `hermes-tasks-desktop-v1`.
 
 ## Current desktop deployment
@@ -16,7 +21,7 @@ now default to `hermes-tasks` / `hermes-tasks-desktop-v1`.
 
 ## Evidence and limits
 
-A desktop-only container using the final image started in 11.842seconds. Its XFCE desktop and visible Chromium were inspected through the saved screenshot `evidence/crabbox-desktop/desktop.png`. The first image failed due to missing SSH host keys; the initializer fixed startup. The Mac viewer initially exited; a later transport-only retry remained up for30seconds. Browser URL policy blocked inspection of the local handoff page; no alternate access was used. Thomas subsequently confirmed the temporary desktop is visible in Google Chrome after an explicit Chrome opener was used. Keyboard/mouse interaction is not yet separately confirmed. The temporary desktop-check container was deleted through Crabbox afterward.
+A desktop-only container using the final image started in 11.842seconds. Its XFCE desktop and visible Chromium were inspected through the saved screenshot `evidence/crabbox-desktop/desktop.png`. The first image failed due to missing SSH host keys; the initializer fixed startup. The Mac viewer initially exited; a later transport-only retry remained up for30seconds. Browser URL policy blocked inspection of the local handoff page; no alternate access was used. the original operator subsequently confirmed the temporary desktop is visible in Google Chrome after an explicit Chrome opener was used. Keyboard/mouse interaction is not yet separately confirmed. The temporary desktop-check container was deleted through Crabbox afterward.
 
 The initial desktop deployment did not run a model task. Subsequently, the authorized first real job `138d622c-6319-4f7a-9283-d9a9b766c4a0` completed through the desktop profile: native Hermes/Grok produced five queue-report utility files, reported23 passing tests, and returned its results through the API. The Mac downloaded the bundle, matched all five artifact hashes/lengths, and independently reran23 tests successfully. Omarchy journal phase stopped, zero remaining Docker containers and removed per-task model-key confirm cleanup. Evidence: `evidence/crabbox-first-job/receipt.json`, result.zip, status.json and local-checks.txt. No follow-up, cancellation, eight-task load test, Mac-viewer check or external model review was performed during this job. Environment remains operator approved with `qualified=false`, manifest `9e253f559209a79b57e2d9c2fd4caa1dd96d67ea793bf3a963a0f992b32af212`.
 
@@ -36,17 +41,17 @@ The following sections retain the previous deployment details for old sessions.
 
 ## Concurrency update — 2026-09-18
 
-Thomas requested a maximum of eight simultaneous tasks. API/worker capacity and Hermes capacity are now8; the scheduler validation ceiling was raised from6 to8. Per-task4GiB RAM, existing RAM/disk admission guards and other limits remain unchanged. Applied while idle with private backups, source/config readback and active services; no test jobs were run. Receipt: `evidence/crabbox-deployment/concurrency8.json`. Both Minis' caller skills reflect the new maximum.
+the original operator requested a maximum of eight simultaneous tasks. API/worker capacity and Hermes capacity are now8; the scheduler validation ceiling was raised from6 to8. Per-task4GiB RAM, existing RAM/disk admission guards and other limits remain unchanged. Applied while idle with private backups, source/config readback and active services; no test jobs were run. Receipt: `evidence/crabbox-deployment/concurrency8.json`. Both Minis' caller skills reflect the new maximum.
 
 ## Previous web-v2 deployment (historical)
 
-Target: `omarchy`, the separate Intel MacBook Pro, SSH `thomas@100.83.74.92`. Private HTTPS API: `https://omarchy.tail0d5eb6.ts.net`, Tailscale Serve to loopback7780. Legacy cloudd on7777 was neither restarted nor replaced.
+Target: `omarchy`, the separate Intel MacBook Pro, SSH `operator@worker.example.ts.net`. Private HTTPS API: `https://worker.example.ts.net`, Tailscale Serve to loopback7780. Legacy cloudd on7777 was neither restarted nor replaced.
 
 Default caller project/environment: `hermes-tasks` / `hermes-tasks-web-v2`. A fresh task starts one native Hermes0.21.3 worker using Grok4.6/xhigh and an independent workspace/profile. Up to three independent tasks run simultaneously; excess tasks queue. Explicit follow-up retains its original session/workspace. Results are exported and containers removed by the existing lifecycle. Task history and native continuation state remain on disk; this is not automatic deletion of saved workspaces.
 
 The image `sha256:588168c9c911a5367997e4679776d333dc97d1caed20750767ac1254ac894934` contains Playwright1.63.0 and Chromium153.0.8010.12. Browser files are under `/opt/playwright`; worker instructions are `/opt/cloud-tools/BROWSER.md`. Browser automation runs through terminal Python `/opt/hermes/venv/bin/python` inside tool containers. Provider credentials and the host Docker socket stay outside those tool containers. Headless browsing is available; no remote graphical desktop or streamed browser UI was added.
 
-Tools use bridge internet for web access and workspace-local dependency downloads. Limits: workspace8GiB disk, coordinator1GiB RAM/128PIDs, each tool container3GiB RAM/256PIDs, each1CPU. Host admission reserves at least8GiB and requires4GiB available above that for new jobs. These are ceilings and admission settings, not measured per-job usage. Updated at Thomas's request: each submitted job/follow-up now permits1,000model steps and7,200seconds (two hours), whichever comes first. Capture timeout is7,320seconds; the Hermes-only host supervisor timeout is7,500seconds. Other agent supervisor budgets remain unchanged. No automatic parent check-ins were added.
+Tools use bridge internet for web access and workspace-local dependency downloads. Limits: workspace8GiB disk, coordinator1GiB RAM/128PIDs, each tool container3GiB RAM/256PIDs, each1CPU. Host admission reserves at least8GiB and requires4GiB available above that for new jobs. These are ceilings and admission settings, not measured per-job usage. Updated at the operator's request: each submitted job/follow-up now permits1,000model steps and7,200seconds (two hours), whichever comes first. Capture timeout is7,320seconds; the Hermes-only host supervisor timeout is7,500seconds. Other agent supervisor budgets remain unchanged. No automatic parent check-ins were added.
 
 The new environment is explicitly operator approved by manifest digest `e6ed9b6fbc9e0e8ffd6e7faed9c7629ee713b8edb703aeafff6df4e3310b7e59`, with `qualified=false` and no fabricated qualification receipt. New successful task outcomes remain `unverified` because the project has no protected checks. Existing offline versions and old sessions remain registered with their original limits; the new default applies to new caller submissions.
 
@@ -96,4 +101,4 @@ Backups: `/var/lib/cloud-workbench/operator-backups/hermes-native-20260918`, `/v
 
 ## Job budget update — 2026-09-18
 
-Raised native Hermes limits from20steps/420seconds to1,000steps/7,200seconds. Aligned capture, the Hermes-only supervisor and credential lifetime admission/renewal thresholds. Deployed on idle Omarchy with source SHA binding, syntax checks and service/config readback. No new tests, model calls, browser launches or parent polling were added. Rollback files: `/var/lib/cloud-workbench/operator-backups/job-budget-20260918`; restore source/config only while idle, never restore an old task database. Caller skill documentation is updated on both Mac minis.
+Raised native Hermes limits from20steps/420seconds to1,000steps/7,200seconds. Aligned capture, the Hermes-only supervisor and credential lifetime admission/renewal thresholds. Deployed on idle Omarchy with source SHA binding, syntax checks and service/config readback. No new tests, model calls, browser launches or parent polling were added. Rollback files: `/var/lib/cloud-workbench/operator-backups/job-budget-20260918`; restore source/config only while idle, never restore an old task database. Caller skill documentation is updated on the original caller machines.

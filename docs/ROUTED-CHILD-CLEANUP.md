@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Combined routed child cleanup
 
 `RoutedChildCleanup` consumes trusted scheduler/runtime/spec objects, the exact `QuiescedStage`, and every `WorkerService` owning an execution grant for that child. It does not accept model-provided cleanup assertions. `collect()` produces a durable, bounded, hash-addressed receipt in the controller runtime directory while keeping the scheduler seat and all root account reservations held.

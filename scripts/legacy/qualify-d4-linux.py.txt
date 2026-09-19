@@ -1,0 +1,149 @@
+"""Root operator driver for disposable isolated D4 permission proof; no live services."""
+
+# Archived one-off operation; use the supported host installer instead.
+raise SystemExit('Archived operation is disabled. See docs/AGENT-SETUP.md for supported installation.')
+
+import datetime
+import hashlib
+import json
+import os
+from pathlib import Path
+import shutil
+import stat
+import subprocess
+import sys
+import tempfile
+import time
+import uuid
+
+IMAGE='sha256:5a03c9d2d1fc20683029c47683a3b0470ad2d7ce79eeb43ced1bdfba10770693'
+OWNER='cloud-workbench-d4-permission-proof'
+BASE=Path(sys.argv[1]).resolve()
+manifest=json.loads((BASE/'manifest.json').read_text())
+assert Path(__file__).resolve()==BASE/'driver.py' and hashlib.sha256(Path(__file__).read_bytes()).hexdigest()==manifest['driver.py']
+for name,digest in manifest.items():
+    path=BASE/name
+    assert not path.is_symlink() and path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest()==digest
+assert os.geteuid()==0 and os.uname().nodename=='archived-worker.invalid'
+RUN='cwb-d4-linux-'+uuid.uuid4().hex[:12]
+root=Path(tempfile.mkdtemp(prefix=RUN+'-',dir='/var/tmp'));root.chmod(0o700)
+source=root/'proof';source.mkdir(mode=0o755)
+role=root/'role';role.mkdir(mode=0o750);os.chown(role,27001,27002)
+for name in manifest:
+    if name.startswith('source/') or name=='probe.py':
+        target=source/name;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes((BASE/name).read_bytes());target.chmod(0o644)
+for directory in source.rglob('*'):
+    if directory.is_dir():directory.chmod(0o755)
+containers=[];tokens=[]
+receipt={'kind':'isolated_linux_d4_permissions','run_id':RUN,'host':os.uname().nodename,'started_at':datetime.datetime.now(datetime.timezone.utc).isoformat(),'image':IMAGE,'source_sha256':manifest,'cases':{},'cleanup':{},'design_no_provider_calls':True,'design_no_live_service_changes':True,'effective_driver_uid':os.geteuid(),'executing_driver_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
+
+def command(args,timeout=30):
+    result=subprocess.run(args,text=True,capture_output=True,timeout=timeout)
+    if result.returncode:
+        raise RuntimeError('command_failed:'+args[0]+':'+str(result.returncode))
+    return result.stdout
+
+def inspect(identity):
+    value=json.loads(command(['docker','inspect',identity]))[0]
+    labels=value['Config']['Labels']
+    assert labels.get('cwb.proof.owner')==OWNER and labels.get('cwb.proof.run')==RUN and value['Image']==IMAGE
+    return value
+
+def launch(case,user,mode,role_mount='ro'):
+    args=['docker','create','--name',RUN+'-'+case,'--label','cwb.proof.owner='+OWNER,'--label','cwb.proof.run='+RUN,
+        '--network','none','--read-only','--cap-drop','ALL','--security-opt','no-new-privileges',
+        '--pids-limit','32','--memory','128m','--memory-swap','128m','--cpus','0.25',
+        '--user',user,'--tmpfs','/tmp:rw,nosuid,nodev,noexec,size=32m,mode=1777',
+        '--mount','type=bind,src='+str(source)+',dst=/proof,readonly',
+        '--env','PYTHONPATH=/proof/source','--env','PYTHONDONTWRITEBYTECODE=1',
+        '--entrypoint','/opt/hermes/venv/bin/python']
+    if role_mount is not None:
+        args += ['--mount','type=bind,src='+str(role)+',dst=/run/cloud-role-broker'+(',readonly' if role_mount=='ro' else '')]
+    args += [IMAGE,'/proof/probe.py',mode]
+    identity=command(args).strip();assert len(identity)==64
+    containers.append(identity);inspect(identity)
+    command(['docker','start',identity])
+    return identity
+
+def collect(identity,require_success=True):
+    exit_code=int(command(['docker','wait',identity],timeout=20).strip());value=inspect(identity)
+    logs=command(['docker','logs',identity])
+    if require_success:assert exit_code==0
+    records=[json.loads(line) for line in logs.splitlines()]
+    parsed=records[-1];parsed['exit_code']=exit_code;parsed['structured_stdout']=records[:-1]
+    parsed['container_id']=identity
+    parsed['inspected_isolation']={key:value['HostConfig'][key] for key in ('NetworkMode','ReadonlyRootfs','Memory','MemorySwap','NanoCpus','PidsLimit','CapDrop','SecurityOpt')}
+    parsed['mounts']=[{'destination':v['Destination'],'rw':v['RW']} for v in value['Mounts']]
+    return parsed
+
+try:
+    actual=json.loads(command(['docker','image','inspect',IMAGE]))[0]
+    assert actual['Id']==IMAGE and actual['Os']=='linux' and actual['Architecture']=='amd64'
+    receipt['image_verified']=True
+    controller=launch('controller','27001:27002','controller','rw')
+    deadline=time.monotonic()+15
+    pending=role/'.client.pending'
+    while not pending.exists():
+        if time.monotonic()>deadline or not inspect(controller)['State']['Running']:raise RuntimeError('controller_not_ready')
+        time.sleep(.1)
+    fd=os.open(pending,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK)
+    with os.fdopen(fd,'rb') as stream:
+        info=os.fstat(stream.fileno());assert stat.S_ISREG(info.st_mode) and info.st_nlink==1 and info.st_uid==27001 and stat.S_IMODE(info.st_mode)==0o400 and info.st_size<=4096
+        raw=stream.read(4097);assert len(raw)<=4096
+        after=os.fstat(stream.fileno());assert (info.st_size,info.st_mtime_ns,info.st_ctime_ns)==(after.st_size,after.st_mtime_ns,after.st_ctime_ns)
+    config=json.loads(raw);assert set(config)=={'capability','native_session_id'} and len(config['capability'])==64
+    tokens.append(config['capability'])
+    path=role/'client.json';fd=os.open(path,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o440)
+    with os.fdopen(fd,'w') as out:json.dump(config,out)
+    os.chown(path,0,27002);path.chmod(0o440);pending.unlink()
+    socket_info=(role/'socket').lstat();assert stat.S_ISSOCK(socket_info.st_mode) and socket_info.st_uid==27001 and socket_info.st_gid==27002 and stat.S_IMODE(socket_info.st_mode)==0o660
+    receipt['permission_metadata']={'directory':{'uid':role.stat().st_uid,'gid':role.stat().st_gid,'mode':oct(stat.S_IMODE(role.stat().st_mode))},'config':{'uid':path.stat().st_uid,'gid':path.stat().st_gid,'mode':oct(stat.S_IMODE(path.stat().st_mode))},'socket':{'uid':socket_info.st_uid,'gid':socket_info.st_gid,'mode':oct(stat.S_IMODE(socket_info.st_mode))}}
+    receipt['controller']={**json.loads(command(['docker','logs',controller]).splitlines()[0]),'container_id':controller}
+    pid=inspect(controller)['State']['Pid'];receipt['controller']['host_cgroup']=Path('/proc')/str(pid)/'cgroup';receipt['controller']['host_cgroup']=receipt['controller']['host_cgroup'].read_text().strip()
+    for case,user,mode,mount in [('permitted','27003:27002','permitted','ro'),('permitted-rw','27003:27002','permitted-rw','rw'),('wrong-config-owner','27003:27002','wrong-config-owner','ro'),('wrong-config-mode','27003:27002','wrong-config-mode','ro'),('foreign','27004:27004','foreign','ro'),('permitted-uid-wrong-group','27003:27004','permitted-uid-wrong-group','ro'),('same-group-other-uid','27004:27002','same-group-other-uid','ro'),('no-mount','27003:27002','no-mount',None)]:
+        if case=='wrong-config-owner':os.chown(path,27001,27002)
+        if case=='wrong-config-mode':path.chmod(0o444)
+        identity=launch(case,user,mode,mount)
+        value=inspect(identity)
+        pid=value['State']['Pid']
+        # Short-lived clients may exit before inspect; controller cgroup plus Docker IDs/limits bind topology.
+        cgroup=Path('/proc')/str(pid)/'cgroup'
+        host_cgroup=cgroup.read_text().strip() if pid and cgroup.exists() else None
+        receipt['cases'][case]=collect(identity);receipt['cases'][case]['host_cgroup']=host_cgroup
+        os.chown(path,0,27002);path.chmod(0o440)
+    assert all(not v['inspected_isolation']['ReadonlyRootfs'] is False and v['inspected_isolation']['NetworkMode']=='none' for v in receipt['cases'].values())
+    receipt['passed']=True
+except Exception as error:
+    receipt['passed']=False;receipt['failure_type']=type(error).__name__;receipt['failure_code']=str(error) if str(error).startswith(('command_failed:','controller_not_ready')) else 'fixture_assertion_or_runtime_failure'
+finally:
+    failures=[]
+    for identity in reversed(containers):
+        try:
+            value=inspect(identity)
+            if value['State']['Running']:
+                command(['docker','stop','--time','5',identity],timeout=10)
+                assert not inspect(identity)['State']['Running']
+            if identity==locals().get('controller'):
+                shutdown=collect(identity,require_success=False)
+                receipt['controller_shutdown']=shutdown
+                receipt['controller_socket_removed']=not os.path.lexists(role/'socket')
+                if shutdown['exit_code']!=0 or not shutdown.get('stopped') or shutdown.get('health',{}).get('state')!='stopped' or not receipt['controller_socket_removed']:
+                    receipt['passed']=False;receipt['failure_code']='controller_shutdown_not_verified'
+            command(['docker','rm',identity])
+        except Exception:failures.append(identity)
+    try:remaining=command(['docker','ps','-aq','--filter','label=cwb.proof.owner='+OWNER,'--filter','label=cwb.proof.run='+RUN]).split()
+    except Exception:remaining=['unknown_after_docker_failure']
+    receipt['cleanup']={'created_container_count':len(containers),'removal_failures':failures,'remaining_owned_container_ids':remaining}
+    if not failures and not remaining:
+        assert root.parent==Path('/var/tmp') and root.name.startswith(RUN+'-') and root.lstat().st_uid==0
+        shutil.rmtree(root);receipt['cleanup']['private_root_removed']=not root.exists()
+    else:receipt['cleanup']['private_root_removed']=False
+    observed=list(receipt['cases'].values())+([receipt['controller_shutdown']] if 'controller_shutdown' in receipt else [])
+    receipt['observed_non_uds_connect_attempts']=sum(value['network_attempts'] for value in observed) if len(observed)==len(containers) else None
+    receipt['all_inspected_network_modes_none']=len(observed)==len(containers) and all(value['inspected_isolation']['NetworkMode']=='none' for value in observed)
+    receipt['ended_at']=datetime.datetime.now(datetime.timezone.utc).isoformat()
+    encoded=json.dumps(receipt,sort_keys=True)
+    assert all(token not in encoded for token in tokens)
+    receipt['synthetic_capability_not_in_receipt']=True
+    print(json.dumps(receipt,sort_keys=True))
+    if not receipt.get('passed') or remaining or failures:raise SystemExit(1)

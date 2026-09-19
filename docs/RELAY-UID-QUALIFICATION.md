@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Disposable relay UID isolation qualification
 
 Canonical receipt: `evidence/relay-distinct-uid-20260918T003610Z.json`; transferred source is preserved in the matching `.source-snapshot.json`, and actual native Hermes output in `.tool-stdout.json`. The earlier `20260918T002712Z` receipt is retained as historical evidence with the review gaps described in `reviews/relay-distinct-uid-disposition.md`. Fable returned REVISE; the concrete fixes were independently requalified, without seeking a replacement PASS.

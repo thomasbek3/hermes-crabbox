@@ -207,7 +207,8 @@ def mount_dashboard(app, store, settings):
                         default = version
                     for version in versions:
                         try:
-                            record = registry.resolve(project_id, version)
+                            record = registry.resolve(project_id, version,
+                                operator_approved_sha256=config.get('operator_approved_environments', {}).get(version))
                             manifest = record['manifest']
                             for agent in agents:
                                 if agent in manifest['cli_versions']:

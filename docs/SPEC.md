@@ -1,24 +1,29 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Personal Cloud Agent Platform — implementation specification
 
-Approved model and Jev workflow policy: [PSTACK-MODEL-POLICY.md](PSTACK-MODEL-POLICY.md). It supersedes older role mappings below. Thomas has resumed implementation; the policy remains unactivated pending qualification.
+Approved model and Jev workflow policy: [PSTACK-MODEL-POLICY.md](PSTACK-MODEL-POLICY.md). It supersedes older role mappings below. the original operator has resumed implementation; the policy remains unactivated pending qualification.
 
-Status: full-spec revision after Fable REVISE and documented corrections; release acceptance remains incomplete. Owner: Thomas. Date: 2026-09-17. Architecture correction: Hermes is the required agent runtime; the earlier revision 4 described separate agent products and did not preserve this requirement. Existing direct Claude Code execution is an infrastructure qualification, not Hermes acceptance. See [Hermes runtime correction](HERMES-RUNTIME-CORRECTION.md). Historical frozen evidence remains unchanged.
+Status: full-spec revision after Fable REVISE and documented corrections; release acceptance remains incomplete. Owner: the original operator. Date: 2026-09-17. Architecture correction: Hermes is the required agent runtime; the earlier revision 4 described separate agent products and did not preserve this requirement. Existing direct Claude Code execution is an infrastructure qualification, not Hermes acceptance. See [Hermes runtime correction](HERMES-RUNTIME-CORRECTION.md). Historical frozen evidence remains unchanged.
 
 Normative sequencing and Hermes/pstack contract: [Full-spec baseline](SPEC-FIRST-CONTRACT.md). It defines required multi-model routing, release additions H01–H08, and the current spec-first checkpoint. Older status/sequencing statements do not authorize continuing builds before that checkpoint closes.
 
 ## 1. Outcome and scope
 
-Evolve the existing Omarchy `cloudd` service into a private workbench where Thomas or an authorized agent can submit work, observe progress, intervene, resume, and receive tested deliverables. Target workloads: coding, browser-based verification, research, and file/report production. Initial release supports coding and file/report jobs from supplied inputs; unrestricted browsing/research is gated on the credential-isolating gateway profile. Use Hermes as the agent runtime. Configure Claude, Codex, Grok and other supported model/provider backends behind Hermes; they are not separate cloud-agent products. Qualify each exact Hermes backend, transport, model identity and credential mode before enabling it. Do not build a new reasoning model.
+Evolve the existing Omarchy `cloudd` service into a private workbench where the original operator or an authorized agent can submit work, observe progress, intervene, resume, and receive tested deliverables. Target workloads: coding, browser-based verification, research, and file/report production. Initial release supports coding and file/report jobs from supplied inputs; unrestricted browsing/research is gated on the credential-isolating gateway profile. Use Hermes as the agent runtime. Configure Claude, Codex, Grok and other supported model/provider backends behind Hermes; they are not separate cloud-agent products. Qualify each exact Hermes backend, transport, model identity and credential mode before enabling it. Do not build a new reasoning model.
 
 Target the practical Devin/Cursor experience: prepared environments, continuing conversations, live progress, terminal/browser access, evidence, and clean handoff. This specification is not a claim of product parity, task success rate, or VM-grade container isolation.
 
 Initial deployment: one owner, one Linux worker on the existing 32 GB Intel Omarchy laptop. No Kubernetes, shared cluster, payment system, public signup, or public inbound service. Native macOS/iOS and Windows tasks require later OS-specific workers. The laptop remains a daily-use machine; cloud jobs must not exhaust its resources. A sleeping/offline laptop cannot execute tasks. Remote workers are a later extension of the same protocol.
 
-This document authorizes no production migration, credential rotation, purchase, or deployment itself. Implementers must use Thomas's task authorization and preserve existing jobs and unrelated services.
+This document authorizes no production migration, credential rotation, purchase, or deployment itself. Implementers must use the operator's task authorization and preserve existing jobs and unrelated services.
 
 ## 2. Historical v1 baseline versus intended platform
 
-Verified 2026-09-17 via SSH as `thomas@100.83.74.92`, hostname `omarchy`:
+Verified 2026-09-17 via SSH as `operator@worker.example.ts.net`, hostname `omarchy`:
 
 | Area | Observed implementation | Required change |
 |---|---|---|
@@ -61,7 +66,7 @@ Logical components:
 8. **Dashboard/CLI:** task interaction and visibility; losing a client connection never cancels a job.
 9. **Egress gateway (runtime owner):** enforce destination profiles with provider-specific positive connectivity tests as well as escape-denial tests.
 
-Initially these may be modules in one service, with explicit interfaces and a separate privileged worker boundary where practical. Only add a network worker protocol when a second worker is needed. A job must never receive the control service's bearer credentials or Docker socket. Run the controller under a dedicated `cloud-control` service identity distinct from Thomas and the mapped job UID; credential/artifact roots mode 0700. A narrowly exposed supervisor owns Docker privileges. P00 records rootful/rootless Docker and numeric UID mappings; do not give the controller unrestricted personal-home access. Any same-process prototype with Docker authority is explicitly trusted host administration, not the final privilege boundary.
+Initially these may be modules in one service, with explicit interfaces and a separate privileged worker boundary where practical. Only add a network worker protocol when a second worker is needed. A job must never receive the control service's bearer credentials or Docker socket. Run the controller under a dedicated `cloud-control` service identity distinct from the original operator and the mapped job UID; credential/artifact roots mode 0700. A narrowly exposed supervisor owns Docker privileges. P00 records rootful/rootless Docker and numeric UID mappings; do not give the controller unrestricted personal-home access. Any same-process prototype with Docker authority is explicitly trusted host administration, not the final privilege boundary.
 
 ## 5. Records and persistence
 
@@ -129,15 +134,15 @@ Snapshot only after quiescing writers and accounting for sidecar state. A file a
 
 ## 8. Provider credentials and supported concurrency
 
-Do not inherit the current broad Hermes home copy or copy any job-modified `.env`, `config.yaml`, `.credentials.json`, or `auth.json` into Thomas's personal home. Inventory required auth/config fields without printing their values. Unrelated email, browser, vault, deployment and messaging credentials must not accompany a general job.
+Do not inherit the current broad Hermes home copy or copy any job-modified `.env`, `config.yaml`, `.credentials.json`, or `auth.json` into the operator's personal home. Inventory required auth/config fields without printing their values. Unrelated email, browser, vault, deployment and messaging credentials must not accompany a general job.
 
 **Historical direct-Claude profile; routed Hermes uses SPEC-FIRST-CONTRACT.md D1 instead:** a dedicated cloud credential capsule per provider account, created through an explicit supported login path, stored under the service's protected credential root. One exclusive writer/execution lease per capsule. It must not share auth files or concurrent refresh ownership with a personal desktop CLI. Same-account jobs queue until the adapter proves a safe supported concurrency mechanism. Different dedicated identities may run concurrently within worker limits.
 
-The capsule may contain provider-native writable refresh state if the CLI requires it. Mount only the matching capsule and minimal allowlisted provider config to the authorized runtime; no personal home mount and no host-home sync-back. Agent code in that runtime can potentially read or alter those credentials: container separation and log redaction DO NOT hide credentials from arbitrary code inside the container. Therefore this initial profile is only for Thomas's trusted workloads with explicit provider-account exposure accepted. An auth error or unexpected auth/config mutation quarantines the capsule for reauthentication; never trust file mtime as validity. The adapter allowlist explicitly defines credential filenames, schema and permitted refresh-field changes. Files outside that list, invalid schema, unexpected executable/config fields, or unrelated identity change are unexpected; normal allowlisted token refresh is not. Validate without logging values.
+The capsule may contain provider-native writable refresh state if the CLI requires it. Mount only the matching capsule and minimal allowlisted provider config to the authorized runtime; no personal home mount and no host-home sync-back. Agent code in that runtime can potentially read or alter those credentials: container separation and log redaction DO NOT hide credentials from arbitrary code inside the container. Therefore this initial profile is only for the operator's trusted workloads with explicit provider-account exposure accepted. An auth error or unexpected auth/config mutation quarantines the capsule for reauthentication; never trust file mtime as validity. The adapter allowlist explicitly defines credential filenames, schema and permitted refresh-field changes. Files outside that list, invalid schema, unexpected executable/config fields, or unrelated identity change are unexpected; normal allowlisted token refresh is not. Validate without logging values.
 
 Gate each adapter on live tests of initial login, token refresh, expired auth, cancellation during refresh, restart and queued reuse. If the provider's supported CLI/account behavior cannot meet this ownership scheme, mark that adapter unavailable and offer explicit alternatives: manual reauthentication for limited runs, a supported credential broker, or an API-key mode requiring separate spending approval. Never pretend a generic OAuth broker works for every subscription. New accounts/subscriptions are an owner decision, not an implementation assumption.
 
-Provider probe deliverable is a table recording: CLI/version, native login method, official credential path override, observed access/refresh expiry behavior, writable-state needs, refresh atomicity, same-account simultaneous logins, native transcript path isolation, resume identity requirements, proxy/base-URL behavior, normal auth/refresh through enforced egress, auto-update disablement, structured output, termination behavior, and provider-supported use. Do not inspect or print token values; use redacted event outcomes and auth success/failure. Tests run only on a designated disposable/test login, not by deliberately expiring Thomas's active personal credentials. A supported long-lived automation token that avoids copying personal login state is preferable when available and verified.
+Provider probe deliverable is a table recording: CLI/version, native login method, official credential path override, observed access/refresh expiry behavior, writable-state needs, refresh atomicity, same-account simultaneous logins, native transcript path isolation, resume identity requirements, proxy/base-URL behavior, normal auth/refresh through enforced egress, auto-update disablement, structured output, termination behavior, and provider-supported use. Do not inspect or print token values; use redacted event outcomes and auth success/failure. Tests run only on a designated disposable/test login, not by deliberately expiring the operator's active personal credentials. A supported long-lived automation token that avoids copying personal login state is preferable when available and verified.
 
 Hermes is required in the initial release. A copied `claude-bridge` binary is not evidence of a supported backend: inspect the pinned Hermes source and qualify its actual backend transport, auth ownership, event/usage behavior and cancellation semantics. Do not assume a Claude-compatible OAuth proxy inherits official support. Reuse the already authorized dedicated Claude subscription login only through an established supported path; if that path is unavailable, surface the exact remaining backend/auth decision rather than silently substituting standalone Claude Code, a new API key or paid account. Existing direct Claude Code receipts remain historical infrastructure evidence. Reference for the separately evaluated Claude auth boundary: https://code.claude.com/docs/en/legal-and-compliance .
 
@@ -203,7 +208,7 @@ CLI v2 supports submit, list, show, follow, message, cancel, resume, artifacts, 
 
 ## 12. Browser, preview, and human interaction
 
-Phase 2 adds a pinned browser and automation interface within session boundary. User-visible preview can be served without a full desktop. Phase 3 adds an isolated desktop and authenticated interactive terminal. Do not remotely control Thomas's active Moonlight desktop to operate a cloud job.
+Phase 2 adds a pinned browser and automation interface within session boundary. User-visible preview can be served without a full desktop. Phase 3 adds an isolated desktop and authenticated interactive terminal. Do not remotely control the operator's active Moonlight desktop to operate a cloud job.
 
 One browser profile per session. Persistence across sessions is opt-in and scoped to a project/test identity; cookies are credentials, not ordinary artifacts. Human login assistance must stop agent interaction and use a takeover lease. Lease disconnect leaves the session held and visibly awaiting a decision; held timeout leads to checkpointing or interrupted under section 6, never paused without a durable checkpoint;  it must not silently resume actions while a human may still be typing. Explicit release invalidates browser and terminal write tokens before agent resumes. Read-only observers may watch concurrently.
 
@@ -302,7 +307,7 @@ A gate involving an unavailable optional capability is explicitly N/A with reaso
 
 Store each test's revision, environment digest, command/procedure, result, timestamps and evidence link. Any missing release-gate evidence stays explicitly unverified.
 
-Run destructive/flood/fault tests only in an isolated test deployment with small synthetic quotas and a fake provider or designated test identity. Never fill the personal laptop disk, delete live job directories, force-expire personal logins or kill the production daemon as an unannounced test. Production validation is a bounded canary with rollback and Thomas's rollout authority.
+Run destructive/flood/fault tests only in an isolated test deployment with small synthetic quotas and a fake provider or designated test identity. Never fill the personal laptop disk, delete live job directories, force-expire personal logins or kill the production daemon as an unannounced test. Production validation is a bounded canary with rollback and the operator's rollout authority.
 
 ## 17. Rollout and owner decisions
 
@@ -325,4 +330,4 @@ Accessed 2026-09-17; product features are vendor documentation claims, not hands
 - https://docs.devin.ai/product-guides/knowledge — reusable relevant project context.
 - https://docs.devin.ai/product-guides/secrets — scoped credentials and browser authentication.
 
-Design choices above are recommendations for Thomas's private service, not a statement that either vendor implements this exact architecture. Commercial VM isolation and availability must not be attributed to the current Docker-on-laptop implementation.
+Design choices above are recommendations for the operator's private service, not a statement that either vendor implements this exact architecture. Commercial VM isolation and availability must not be attributed to the current Docker-on-laptop implementation.

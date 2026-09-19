@@ -53,7 +53,7 @@ def configured(tmp_path, monkeypatch):
         hermes_source_root=source, hermes_grok_auth=grok, hermes_journal_root=tmp_path/'journal',
         docker_socket=tmp_path/'docker.sock', coordinator_uid=os.geteuid(),
         approved_mount_roots=[tmp_path], approved_writable_mount_roots=[tmp_path],
-        uid=958, gid=959, tool_network='bridge', tool_image_allowlist=[IMAGE],
+        uid=2450, gid=2451, tool_network='bridge', tool_image_allowlist=[IMAGE],
         crabbox_binary=tmp_path/'crabbox', crabbox_image=IMAGE, crabbox_images=[IMAGE],
         crabbox_desktop_images=[IMAGE], crabbox_pstack_images=[IMAGE],
         crabbox_pstack_claude_token=claude, crabbox_pstack_codex_auth=codex,
@@ -206,8 +206,20 @@ def test_secret_source_rejects_symlink_public_mode_and_invalid(tmp_path):
         runtime._pstack_secret(path)
 
 
+@pytest.fixture
+def entrypoint_umask():
+    # Capture.main normally owns a separate process. In-process tests must
+    # restore its restrictive mask so later filesystem fixtures stay independent.
+    previous = os.umask(0o077)
+    os.umask(previous)
+    try:
+        yield
+    finally:
+        os.umask(previous)
+
+
 @pytest.mark.parametrize('additional', [False, True])
-def test_capture_redacts_all_and_preserves_old_records(tmp_path, monkeypatch, additional):
+def test_capture_redacts_all_and_preserves_old_records(tmp_path, monkeypatch, additional, entrypoint_umask):
     tmp_path = tmp_path.resolve()
     home = tmp_path/'home'
     home.mkdir(mode=0o700)
@@ -233,7 +245,7 @@ def test_capture_redacts_all_and_preserves_old_records(tmp_path, monkeypatch, ad
     assert json.loads((tmp_path/'receipt').read_text())['exit_code'] == 0
 
 
-def test_capture_rejects_additional_secret_in_environment(tmp_path, monkeypatch):
+def test_capture_rejects_additional_secret_in_environment(tmp_path, monkeypatch, entrypoint_umask):
     tmp_path = tmp_path.resolve()
     home = tmp_path/'home'
     home.mkdir(mode=0o700)
@@ -244,3 +256,17 @@ def test_capture_rejects_additional_secret_in_environment(tmp_path, monkeypatch)
     monkeypatch.setattr(capture, 'capture', lambda *args, **kwargs: pytest.fail('must not launch'))
     assert capture.main([str(private(tmp_path/'capture', record))]) == 1
     assert not (tmp_path/'events').exists()
+
+
+def test_launch_uses_configured_guest_identity(configured):
+    folder = launch(configured)
+    assert 'chown 2450:2451 /agent-state' in (folder/'payload/start.sh').read_text()
+
+
+def test_pstack_requires_explicit_credential_locations(configured):
+    config = dict(configured[1])
+    config.pop('crabbox_pstack_codex_auth')
+    with pytest.raises(RuntimeError, match='explicit Claude, Codex and Jev'):
+        runtime.CrabboxRuntime(config)
+    config['crabbox_pstack_images'] = []
+    runtime.CrabboxRuntime(config)

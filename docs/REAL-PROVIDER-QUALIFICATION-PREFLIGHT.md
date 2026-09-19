@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Real provider qualification preflight
 
 Read-only Omarchy observation, 2026-09-18: `/etc/cloud-workbench/worker.json` points to `/var/lib/cloud-workbench/control/state.db` and the historical direct-Claude runtime image `sha256:f1b15bb81917de9b48df7c9b5c2be438e686f692b42bdaa58eb2aeedf5b9ea0b`. Provider egress is limited to api.anthropic.com, claude.ai and platform.claude.com. Project model lists are empty; they do not prove any specific native model entitlement.

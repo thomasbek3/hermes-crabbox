@@ -6,7 +6,7 @@ import pytest
 
 
 def guard():
-    tree=ast.parse((Path(__file__).parents[1]/'scripts/repo-provider-smoke.py').read_text())
+    tree=ast.parse((Path(__file__).parents[1]/'scripts/legacy/repo-provider-smoke.py.txt').read_text())
     function=next(node for node in tree.body if isinstance(node,ast.FunctionDef) and node.name=='assert_continuation_binding')
     namespace={}
     exec(compile(ast.Module(body=[function],type_ignores=[]),'<binding-guard>','exec'),namespace)
@@ -14,7 +14,7 @@ def guard():
 
 
 def receipt():
-    return {'host':'omarchy','uid':0,'config_sha256':'a'*64,'image_digest':'sha256:'+'b'*64,
+    return {'host':'archived-worker.invalid','uid':0,'config_sha256':'a'*64,'image_digest':'sha256:'+'b'*64,
         'registered_commit':'c'*40,'source_sha256':{name:'d'*64 for name in
         ('runner.py','api.py','store.py','environments.py','repositories.py','artifacts.py')}}
 

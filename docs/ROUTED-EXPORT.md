@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Stopped-workspace export
 
 `routed_export.py` creates a separate Docker collector to read selected deliverables from an exactly bound stopped caller workspace as UID1000. This enables reading caller-owned0600 output without giving worker959 host root or mounting task, scratch, sockets, provider state or credentials. It is a controller primitive, not a running worker service or a verification gate.

@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Bounded child launch control transactions
 
 The six child-control APIs (`bind_child_caller`, `begin_child_start`, `check_child_start_authority`, `confirm_child_started`, `read_child_launch`, `fence_child_execution`) use a scheduler-private SQLite context. Existing Store connections and transactions remain unchanged at their historical 30-second busy timeout.

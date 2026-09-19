@@ -7,7 +7,7 @@ import sys
 
 import pytest
 
-PATH=Path(__file__).resolve().parents[1]/'scripts/qualify-routed-driver-linux.py'
+PATH=Path(__file__).resolve().parents[1]/'scripts/legacy/qualify-routed-driver-linux.py'
 spec=importlib.util.spec_from_file_location('routed_driver_qualification',PATH)
 module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
 
@@ -40,7 +40,7 @@ def test_prepare_refuses_existing_output(bundle,tmp_path):
 
 def test_isolated_closure_imports_without_workspace_package(tmp_path):
     package=tmp_path/'cloudworkbench';package.mkdir()
-    for name,text in module.source_closure(PATH.parents[1]).items():(package/name).write_text(text)
+    for name,text in module.source_closure(PATH.parents[2]).items():(package/name).write_text(text)
     result=subprocess.run([sys.executable,'-I','-c',
         "import sys;sys.path.insert(0,sys.argv[1]);from cloudworkbench.routed_driver import drive_prepared_child;from cloudworkbench.scheduler import RoleScheduler;from cloudworkbench.provider_docker import BoundedDocker;from cloudworkbench.routed_results import publish_child_results",str(tmp_path)],capture_output=True,text=True,timeout=10)
     assert result.returncode==0,result.stderr
@@ -70,7 +70,7 @@ def test_cleanup_exact_scope_only(bundle):
 
 def good_receipt(bundle):
     return {'proof_version':2,'scenario':bundle['scenario'],'passed':True,'run_id':bundle['run_id'],'image':bundle['image'],'source_hashes':bundle['hashes'],
-        'harness_sha256':bundle['harness_sha256'],'host':'omarchy','remaining':[],'cleanup_complete':True,
+        'harness_sha256':bundle['harness_sha256'],'host':'archived-worker.invalid','remaining':[],'cleanup_complete':True,
         'export_cleanup':{'collector_removed':True,'journal_present':True,'bytes_recoverable':True,'terminal_aborted':False},
         'worker_exit_code':0,'root_preprovisioned_fixture':True,'worker959_provisioning_qualified':False,
         'unknown_worker_effects':False,'real_provider_calls':False,'real_credentials_used':False,
@@ -124,7 +124,7 @@ def test_partial_evidence_never_passes(bundle,case):
 
 def test_no_mode_refuses_without_execution():
     value=subprocess.run([sys.executable,str(PATH)],capture_output=True,text=True,timeout=5)
-    assert value.returncode==2
+    assert value.returncode != 0 and 'Archived operation is disabled' in value.stderr
 
 
 def test_durable_file_proof_matches_collected_hashes_and_rejects_change(tmp_path):
@@ -230,7 +230,7 @@ def test_real_supervised_budgeted_fixture_two_turns_and_cleanup(tmp_path):
     scheduler,child,prepared,profile,grant=module.setup_stage(tmp_path.resolve())
     support=module.support_module({'support':(PATH.parent/module.SUPPORT).read_text()})
     wrapped,provider=module.supervised_fixture(scheduler,child,prepared,profile,grant,support)
-    tools=json.loads((PATH.parents[1]/'tests/fixtures/hermes/base-tool-schemas.json').read_text())
+    tools=json.loads((PATH.parents[2]/'tests/fixtures/hermes/base-tool-schemas.json').read_text())
     payload={'model':profile.model,'reasoning':{'effort':profile.effort},'store':False,'stream':True,
         'instructions':'Synthetic read only.','tools':[{'type':'function',**t['function']} for t in tools if t['function']['name']=='read_file'],
         'input':[{'role':'user','content':'Read the fixture.'}]}
@@ -294,7 +294,7 @@ def test_worker_diagnostic_has_only_fixed_phase_type_and_source_literal(bundle):
 
 @pytest.fixture
 def actual_composition():
-    fixture=json.loads((PATH.parents[1]/'tests/fixtures/routed-results-composition.json').read_text())
+    fixture=json.loads((PATH.parents[2]/'tests/fixtures/routed-results-composition.json').read_text())
     assert fixture['source_receipt_passed'] is False
     return fixture['composition']
 

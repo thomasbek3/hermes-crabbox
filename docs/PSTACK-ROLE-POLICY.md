@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Pstack role policy foundation
 
 Local resolver checkpoint; no deployed route, account qualification or worker launch. `pstack_routing.py` owns only trusted role/profile resolution. `requested_policy()` returns desired aliases and cannot activate them without concrete profiles and the later trusted qualification path.

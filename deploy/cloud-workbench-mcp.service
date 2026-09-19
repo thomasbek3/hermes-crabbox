@@ -1,11 +1,12 @@
 [Unit]
-Description=Private Omarchy task MCP interface
+Description=Private Hermes Crabbox task MCP interface
 After=network.target cloud-workbench-api.service
 Wants=cloud-workbench-api.service
 
 [Service]
 DynamicUser=true
 WorkingDirectory=/opt/omarchy-mcp
+EnvironmentFile=/etc/cloud-workbench/mcp.env
 ExecStart=/opt/omarchy-mcp/.venv/bin/python /opt/omarchy-mcp/server.py
 Restart=on-failure
 RestartSec=3

@@ -1,138 +1,126 @@
 # Connect your agent
 
-[Home](../README.md) · [Documentation](README.md) · [Access and security](../SECURITY.md)
+[Home](../README.md) · [Agent setup](AGENT-SETUP.md) · [Install a worker host](HOST-INSTALL.md)
 
-This guide connects a caller to the **existing Omarchy deployment**. For a new
-execution host, see [BUILDING.md](../BUILDING.md); fresh-host setup remains manual.
+Run these steps on the machine that executes your agent's tools. Use an existing
+worker host or install one first. The repository does not provide a shared hosted
+service, a model subscription, or access to the maintainer's computers.
 
-## Before you start
+## What you need
 
-1. Join the calling machine to the approved Tailscale network. The process running
-   the tools must have network access; a remote SaaS agent does not inherit your
-   laptop's VPN connection.
-2. Ask the operator for a dedicated service credential with the required scopes.
-   [Operator provisioning](../integrations/omarchy-mcp/README.md#operator-provisioning)
-   prints a protected credential-file path, not a token to paste into a chat.
-3. Supply that credential through your agent host's secret manager. The examples
-   use the environment variable `OMARCHY_CLOUD_TOKEN`. Make it available to the
-   actual agent process; a shell export does not necessarily reach a GUI app.
+- Python 3.10+ and Git on the caller. macOS/Linux support private credential files;
+  native Windows callers use `OMARCHY_CLOUD_TOKEN` from their secret environment.
+- Tailscale reachability to the chosen worker from this tool-execution machine.
+- The host's HTTPS origin, project, and environment version from its setup receipt.
+- A dedicated service-issued credential with the needed task scopes. A GitHub,
+  Tailscale, or model-provider token does not authenticate this service.
 
-| Setting | Existing deployment |
+Store credentials through the agent host's secret facility. The examples use
+`OMARCHY_CLOUD_TOKEN`; it must be available to the actual agent process. A terminal
+export does not necessarily reach a GUI app. Do not paste tokens into chat.
+
+## Install the caller skill
+
+Clone the public repository, then use your actual host origin in place of the
+example. Do not include `/mcp` in `--server`.
+
+```sh
+git clone https://github.com/thomasbek3/hermes-crabbox.git
+cd hermes-crabbox
+python3 scripts/install-delegation-skill.py --agent hermes \
+  --server https://worker.example.ts.net --json
+```
+
+| Agent | Installer destination |
 | --- | --- |
-| MCP transport | Streamable HTTP |
-| MCP URL | `https://omarchy.tail0d5eb6.ts.net/mcp` |
-| HTTP origin | `https://omarchy.tail0d5eb6.ts.net` |
-| Authentication | Service-issued Bearer credential |
-| Caller scopes | `submit`, `observe`, `retrieve`, `cancel` |
-| Project | `hermes-tasks` |
+| Hermes | `--agent hermes` → `~/.hermes/skills/omarchy-cloud-delegate` |
+| Codex | `--agent codex` → `~/.agents/skills/omarchy-cloud-delegate` |
+| Claude Code | `--agent claude` → `~/.claude/skills/omarchy-cloud-delegate` |
+| Cursor | `--agent cursor` → `~/.cursor/skills/omarchy-cloud-delegate` |
+| Another harness or a named profile | `--skills-dir /actual/supported/skills/directory` |
 
-Do not run an OAuth login for this server: it does not implement browser OAuth.
-GitHub repository access, network connectivity, and task credentials are separate.
+On Windows use `py -3` if `python3` is not on PATH. For PowerShell, the same
+command on one line is:
 
-## Cursor
+```powershell
+py -3 scripts/install-delegation-skill.py --agent codex --server https://worker.example.ts.net --json
+```
 
-Use **Add to Cursor** on the [repository front page](../README.md#connect-your-agent).
-It opens Cursor's installation confirmation with the URL and an environment
-variable reference. It does not contain or create a credential.
+Pick the actual profile's skill
+directory instead of assuming that every harness uses the same location.
 
-Alternatively, merge [examples/cursor.mcp.json](../examples/cursor.mcp.json) into
-`~/.cursor/mcp.json`, keeping any existing servers. The Authorization value is
-`Bearer ${env:OMARCHY_CLOUD_TOKEN}`. Restart/reconnect the client after making the
-credential available to its process, then load `get_delegation_guide`.
+Add `--project YOUR_PROJECT --environment-version YOUR_ENVIRONMENT` when the
+host uses non-default identifiers. The installer saves non-secret
+`scripts/connection.json`, an agent-readable `CONNECTION.md`, and `cursor.mcp.json`.
+The HTTP client and evidence publisher both use the saved host. Explicit
+`OMARCHY_CLOUD_SERVER`, `OMARCHY_CLOUD_PROJECT`, and `OMARCHY_CLOUD_ENVIRONMENT`
+variables override these defaults. No personal server is used automatically.
 
-The link/config follow Cursor's official [install-link format](https://cursor.com/docs/mcp/install-links),
-[HTTPS deep-link format](https://cursor.com/docs/reference/deeplinks), and
-[environment interpolation](https://cursor.com/docs/mcp). The configuration was
-checked against that format; an interactive Cursor login/install is not part of
-this release's verification.
+Installation is offline and uses Python's standard library. An identical repeat
+is a no-op. A differing existing skill is preserved: back it up and choose a new
+installation directory, then deliberately switch the agent to that directory.
+The command never changes provider credentials, existing MCP settings, or jobs.
+Reload the agent's skills or start a new session when its harness requires it.
 
-## Codex
+## Check access without starting a task
 
-With `OMARCHY_CLOUD_TOKEN` available to Codex:
+Run from the installed skill directory printed in the receipt:
+
+```sh
+python3 scripts/check_connection.py
+```
+
+The JSON result distinguishes configuration, network, authorization, redirect,
+and response-format failures. Exit 0 proves HTTP task-list access only. It does
+not print existing tasks or test provider billing, worker execution, or VNC.
+On macOS/Linux, an alternative to the token environment variable is an owner-only
+`~/.config/omarchy-cloud/token` file (mode 600); use `OMARCHY_CLOUD_TOKEN_FILE`
+for another path. On native Windows use the token environment variable.
+
+## Add MCP, or keep using HTTP
+
+The endpoint is your host origin plus `/mcp`, using Streamable HTTP with a
+service-issued Bearer credential. Browser OAuth is not implemented.
+
+**Codex:** with the credential available to the Codex process:
 
 ```sh
 codex mcp add hermes-crabbox \
-  --url https://omarchy.tail0d5eb6.ts.net/mcp \
+  --url https://worker.example.ts.net/mcp \
   --bearer-token-env-var OMARCHY_CLOUD_TOKEN
 ```
 
-Start a fresh session or reconnect MCP, then ask it to read `get_delegation_guide`.
-The command registers the server; it neither provisions access nor starts a task.
-The flags were checked against the installed Codex CLI's `mcp add --help`.
+**Cursor:** open the **Add this host to Cursor** link in the installed
+`CONNECTION.md`, or merge the installed `cursor.mcp.json` into the selected profile's MCP
+configuration, preserving existing servers. Its Authorization value references
+`${env:OMARCHY_CLOUD_TOKEN}`; it contains no token. The generic
+[example](../examples/cursor.mcp.json) uses a placeholder host.
 
-## Hermes and portable skills
+**Other MCP clients:** register the same endpoint and supply the Authorization
+header using that client's secret facility. Check the client's support for
+Streamable HTTP and custom headers. Do not assume universal configuration syntax.
 
-From a clone of this repo:
+Then reconnect MCP, call `get_delegation_guide`, and call `list_tasks`. An empty
+list is normal for a new caller; credentials only see their own jobs. For a
+scripted protocol check, install the pinned MCP requirements in a separate venv
+and run `scripts/check-private-mcp.py --server YOUR_ORIGIN` from the repository.
 
-```sh
-python3 scripts/install-delegation-skill.py --agent hermes
-```
-
-This installs `omarchy-cloud-delegate` under `~/.hermes/skills/`. Use `--agent codex`
-for `~/.agents/skills/`. For a named Hermes profile or another agent, specify its
-actual skills directory with `--skills-dir /path/to/skills`. The destination is
-always a child folder named `omarchy-cloud-delegate`.
-
-The installer is offline, uses Python's standard library, and refuses to replace
-a modified installation. Repeating it for identical content is a no-op. It
-installs no provider login and changes no MCP settings. A new agent session may
-be needed for discovery.
-
-Without cloning, download the [preview skill bundle](https://github.com/thomasbek3/hermes-crabbox/releases/tag/v0.1.0-preview.1),
-verify it against the release's `SHA256SUMS`, and extract the contained
-`omarchy-cloud-delegate/` directory into your agent's skills directory. Keep its
-MIT license with it. Downloading a bundle does not itself install or enable it.
-
-## Other MCP clients
-
-Configure the endpoint above with an Authorization header supplied from that
-client's secret facility. The client must support Streamable HTTP and custom
-headers. [The operator guide](../integrations/omarchy-mcp/README.md) includes a
-conceptual configuration and all ten tool names.
-
-Call `get_delegation_guide` first. For a read-only connection check, call
-`list_tasks`; a new caller may correctly see an empty list. Each credential sees
-its own jobs, not another caller's history. Grokbot, Claude, or another harness
-can use this interface when its actual tool host supports these requirements.
-
-## Use HTTP instead
-
-Python 3.10+ on macOS/Linux, with a credential from the secret manager or an
-owner-only `~/.config/omarchy-cloud/token` file:
+**HTTP fallback:** the installed skill includes the complete standalone client:
 
 ```sh
-python3 integrations/omarchy-mcp/skill/scripts/omarchy_cloud.py list
-python3 integrations/omarchy-mcp/skill/scripts/omarchy_cloud.py submit \
-  --github OWNER/REPO --ref COMMIT_SHA \
-  --goal-file examples/task.md --idempotency-key my-task-001
+python3 scripts/omarchy_cloud.py list
+python3 scripts/omarchy_cloud.py submit --github OWNER/REPO --ref COMMIT_SHA \
+  --goal-file task.md --idempotency-key first-task-001
 ```
 
-Edit the assignment before submitting. GitHub source snapshots use the parent's
-existing `gh` authorization; its GitHub token is not sent to the worker.
 The first command is read-only. The second starts work and may use model quota.
-Use a new idempotency key for a genuinely new assignment.
+Write [a useful assignment](../examples/task.md) first. GitHub snapshots use the
+caller's existing `gh` authorization; the GitHub token does not enter the worker.
+Save returned session/attempt IDs and inspect results before claiming completion.
+Use the same idempotency key after an uncertain retry, a new one for new work.
 
-## Follow a task
+## Optional desktop viewing
 
-Save the returned session and attempt IDs. Ask for status/events, then retrieve
-results when it finishes. A submission returning an ID means queued/accepted,
-not completed. A task's result still needs the requested acceptance review.
-
-Follow-ups use the existing session ID. Cancellation uses the exact active
-attempt ID. Large source/media transfers use HTTP; avoid putting their bytes in
-MCP messages. [The skill](../integrations/omarchy-mcp/skill/SKILL.md) explains the
-complete sequence and PR-evidence handoff.
-
-## If connection fails
-
-| Symptom | Check |
-| --- | --- |
-| Host not found / connection timeout | Tailscale is running on the tool-execution host and can reach Omarchy |
-| HTTP 401 | Credential is issued by this service, unexpired/unrevoked, and available to the client process |
-| HTTP 403 or inaccessible task | Caller scope/project/ownership; another caller's task may be intentionally inaccessible |
-| Cursor link does not open | Use the manual JSON configuration and a client version supporting MCP install links |
-| GUI client cannot find token | Its environment differs from the terminal; supply the variable through its launch environment |
-| No tasks returned | A new caller normally has no jobs; verify which identity is configured |
-| Browser skill present but no service connection | Skill installation and API authentication are separate steps |
-
-Do not paste tokens, auth files, raw headers, or provider responses into issues.
+[Desktop viewing](DESKTOP.md) needs separate SSH access and a local viewer. It is
+not required for worker browser automation or screenshots. A working MCP
+connection does not automatically grant SSH or keep task containers running.

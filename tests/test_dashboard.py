@@ -306,7 +306,7 @@ def test_dashboard_defaults_only_to_active_admitted_environment(setup,monkeypatc
     settings['environment_registry']='fixture-registry'
     class Registry:
         def __init__(self,path,read_only):assert path=='fixture-registry' and read_only
-        def resolve(self,project,version):
+        def resolve(self,project,version,**kwargs):
             return {'manifest':{'cli_versions':{'claude':'test'}}}
         def active(self,project):
             assert project=='one'
@@ -376,7 +376,7 @@ def test_agent_environments_follow_qualified_cli_identity_not_version_names(setu
     class Registry:
         def __init__(self,*args,**kwargs):pass
         def active(self,project):return {'manifest':{'version':'new'}}
-        def resolve(self,project,version):
+        def resolve(self,project,version,**kwargs):
             if version=='unqualified':raise ValueError('Not qualified')
             return {'manifest':{'cli_versions':{'hermes' if version=='arbitrary-name' else 'claude':'1'}}}
     monkeypatch.setattr(module,'EnvironmentRegistry',Registry);login(client)
@@ -405,6 +405,6 @@ def test_multiple_compatible_environments_without_matching_active_require_choice
     class Registry:
         def __init__(self,*args,**kwargs):pass
         def active(self,project):return None
-        def resolve(self,*args):return {'manifest':{'cli_versions':{'claude':'1'}}}
+        def resolve(self,*args,**kwargs):return {'manifest':{'cli_versions':{'claude':'1'}}}
     monkeypatch.setattr(module,'EnvironmentRegistry',Registry);login(client)
     assert client.get('/auth/config').json()['projects'][0]['environments_by_agent']['claude']=={'versions':['a','b'],'default':None}

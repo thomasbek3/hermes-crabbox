@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # D9 inference relay plumbing
 
 `inference_relay.py` adds a per-attempt loopback-HTTP callback and a private authenticated Unix-socket worker endpoint. It does not activate provider containers, mount credentials, implement ProviderLeases or grant authority. All authorization/execution callbacks are trusted controller code.

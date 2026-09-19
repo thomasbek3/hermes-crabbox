@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Controller cancellation supervisor
 
 `CancellationSupervisor` is a local controller primitive, not a provider cleanup verifier. It requires a trusted Store path, frozen Reservation/AttemptBinding and exact grant ID. The module introduces no schema, API, Docker, credentials, services or deployment changes. Integration into ProviderExecutor is a separate parent-owned change.

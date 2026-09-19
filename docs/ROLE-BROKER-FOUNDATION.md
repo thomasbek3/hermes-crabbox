@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Durable role broker foundation
 
 Local module only. No Unix socket, HTTP route, Store/Runner integration, child scheduler, provider call or deployment is implemented here. Native role-call IDs are correlation inputs, never authentication. The approved D8 patch only delivers those inputs; it does not grant controller authority.

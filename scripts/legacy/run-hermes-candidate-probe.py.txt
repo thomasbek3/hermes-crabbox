@@ -1,0 +1,34 @@
+#!/usr/bin/env python3
+
+# Archived one-off operation; use the supported host installer instead.
+raise SystemExit('Archived operation is disabled. See docs/AGENT-SETUP.md for supported installation.')
+
+from pathlib import Path
+import datetime,hashlib,json,shlex,subprocess,uuid
+root=Path(__file__).resolve().parents[2]
+image=json.loads((root/'evidence/hermesbuild-4e555a944e.json').read_text())['build']['image_id']
+owner='hermesprobe-'+uuid.uuid4().hex[:12];name='cwb-'+owner
+ssh=['ssh','-o','BatchMode=yes','-o','ConnectTimeout=10','operator@worker.example.invalid']
+argv=['/usr/bin/docker','run','--name',name,'--label','io.cloudworkbench.probe-owner='+owner,'--network','none','--read-only',
+ '--user','1000:1000','--cpus','2','--memory','1536m','--memory-swap','1536m','--pids-limit','128',
+ '--cap-drop','ALL','--security-opt','no-new-privileges','--tmpfs','/tmp:rw,nosuid,nodev,size=256m,mode=1777',
+ '-e','PYTHONDONTWRITEBYTECODE=1','-e','OMP_NUM_THREADS=1','-e','OPENBLAS_NUM_THREADS=1','-e','MKL_NUM_THREADS=1',
+ '--workdir','/tmp','--entrypoint','/opt/hermes/venv/bin/python','-i',image,'-']
+source=(root/'scripts/qualify-hermes-candidate.py').read_text()
+result=subprocess.run(ssh+[shlex.join(argv)],input=source,capture_output=True,text=True,timeout=105)
+stamp=datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ');base=root/'evidence'/('hermes-candidate-probe-'+stamp)
+base.with_suffix('.stdout.txt').write_text(result.stdout);base.with_suffix('.stderr.txt').write_text(result.stderr)
+state=subprocess.run(ssh+[shlex.join(['/usr/bin/docker','inspect','--format','{{json .State}}',name])],capture_output=True,text=True,timeout=15)
+metadata=subprocess.run(ssh+[shlex.join(['/usr/bin/docker','inspect','--format','{{.Image}} {{index .Config.Labels "io.cloudworkbench.probe-owner"}}',name])],capture_output=True,text=True,timeout=15)
+assert metadata.stdout.strip().endswith(' '+owner),metadata.stdout
+subprocess.run(ssh+[shlex.join(['/usr/bin/docker','rm','-f',name])],check=True,capture_output=True,timeout=15)
+remaining=subprocess.check_output(ssh+[shlex.join(['/usr/bin/docker','ps','-aq','--filter','label=io.cloudworkbench.probe-owner='+owner])],text=True,timeout=15)
+assert not remaining.strip()
+receipt={'target':'archived-worker.invalid','image':image,'owner':owner,'script_sha256':hashlib.sha256(source.encode()).hexdigest(),
+ 'exit_code':result.returncode,'container_state':json.loads(state.stdout),'container_image_owner':metadata.stdout.strip(),
+ 'stdout_sha256':hashlib.sha256(result.stdout.encode()).hexdigest(),'cleanup_verified':True,'source_deployed':False,
+ 'services_changed':False,'provider_auth_qualified':False,'container_argv':argv}
+base.with_suffix('.json').write_text(json.dumps(receipt,indent=2)+'\n')
+print(json.dumps({'receipt':str(base.relative_to(root))+'.json','exit_code':result.returncode,'cleanup_verified':True,
+ 'stdout_tail':result.stdout[-2200:],'stderr_tail':result.stderr[-1800:]},indent=2))
+raise SystemExit(result.returncode)

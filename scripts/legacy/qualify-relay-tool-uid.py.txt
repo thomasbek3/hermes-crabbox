@@ -1,0 +1,60 @@
+"""Run actual native Hermes plus hostile-access probes as numeric tool UID1000."""
+
+# Archived one-off operation; use the supported host installer instead.
+raise SystemExit('Archived operation is disabled. See docs/AGENT-SETUP.md for supported installation.')
+
+import errno,hashlib,importlib.metadata,json,os,signal,socket,subprocess,sys
+from pathlib import Path
+
+pid=int(sys.argv[1]);assert os.getuid()==1000
+root=Path('/run/tool');assert root.stat().st_uid==1000
+checks=[];denials=[]
+def denied(name,fn):
+    try:fn()
+    except OSError as exc:
+        assert exc.errno in (errno.EACCES,errno.EPERM,errno.EROFS),(name,exc.errno)
+        denials.append({'check':name,'errno':exc.errno});checks.append(name)
+    else:raise AssertionError(name+' unexpectedly allowed')
+
+denied('journal_read_denied',lambda:Path('/run/relay/relay.db').read_bytes())
+denied('journal_write_denied',lambda:Path('/run/relay/relay.db').open('ab'))
+denied('journal_create_denied',lambda:Path('/run/relay/injected').write_text('untrusted'))
+denied('relay_signal_denied',lambda:os.kill(pid,signal.SIGTERM))
+denied('init_signal_denied',lambda:os.kill(1,signal.SIGTERM))
+def connect_worker():
+    with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as sock:sock.connect('/run/relay/worker.sock')
+denied('worker_socket_denied',connect_worker)
+denied('relay_fd_denied',lambda:list(Path('/proc/'+str(pid)+'/fd').iterdir()))
+denied('relay_maps_denied',lambda:Path('/proc/'+str(pid)+'/maps').read_bytes())
+for field in ('cwd','root'):
+    denied('relay_'+field+'_denied',lambda field=field:os.readlink('/proc/'+str(pid)+'/'+field))
+denied('readonly_mount_EROFS',lambda:Path('/proof/writable-probe/injected').write_text('untrusted'))
+assert denials[-1]['errno']==errno.EROFS
+denied('relay_environ_denied',lambda:Path('/proc/'+str(pid)+'/environ').read_bytes())
+denied('relay_source_write_denied',lambda:Path('/proof/cloudworkbench/inference_relay.py').open('ab'))
+denied('setuid_to_relay_denied',lambda:os.setuid(1001))
+assert os.getuid()==1000
+for key,suffix in [('HOME','home'),('HERMES_HOME','hermes'),('CODEX_HOME','codex'),('CLAUDE_CONFIG_DIR','claude')]:
+    path=root/suffix;path.mkdir(mode=0o700);os.environ[key]=str(path)
+os.environ.update({'HERMES_BUNDLED_PLUGINS':'/opt/hermes/empty-bundled','HERMES_INTERACTIVE':'0','HERMES_ENABLE_PROJECT_PLUGINS':'0','TERMINAL_CWD':str(root),'SYNTHETIC_CAPABILITY':'b'*64,'HERMES_STREAM_RETRIES':'0'})
+(root/'fixture.txt').write_text('SYNTHETIC_DISTINCT_UID_FILE\n')
+(root/'query.txt').write_text('Read /run/tool/fixture.txt using read_file. Then confirm SYNTHETIC_DISTINCT_UID_OK.')
+config={'security':{'tirith_enabled':False},'plugins':{'enabled':[]},'model':{'default':'claude-opus-4-6','provider':'uid-proof'},'providers':{'uid-proof':{'base_url':'http://127.0.0.1:9876/v1','transport':'chat_completions','key_env':'SYNTHETIC_CAPABILITY','default_model':'claude-opus-4-6'}},'agent':{'max_turns':3,'api_max_retries':1},'compression':{'enabled':False},'auxiliary':{'transient_retries':0,'title_generation':{'enabled':False,'model_upgrade_enabled':False}},'terminal':{'backend':'local','cwd':str(root)}}
+(Path(os.environ['HERMES_HOME'])/'config.yaml').write_text(json.dumps(config))
+argv=['/opt/hermes/venv/bin/hermes','chat','--query-file',str(root/'query.txt'),'--format','stream-json','--oneshot','--provider','uid-proof','--model','claude-opus-4-6','--reasoning','high','--toolsets','file']
+process=subprocess.Popen(argv,cwd=root,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+cgroup_measurement={name:Path('/sys/fs/cgroup',name).read_text() for name in ('cgroup.procs','cpu.max','memory.max','pids.max')}
+assert process.pid in [int(value) for value in cgroup_measurement['cgroup.procs'].split()]
+assert pid in [int(value) for value in cgroup_measurement['cgroup.procs'].split()]
+try:
+    stdout,stderr=process.communicate(timeout=40)
+except subprocess.TimeoutExpired:
+    process.kill();process.communicate(timeout=5);raise
+result=subprocess.CompletedProcess(argv,process.returncode,stdout,stderr)
+events=[json.loads(line) for line in result.stdout.splitlines()]
+terminal=[e for e in events if e.get('type')=='result']
+assert result.returncode==0 and len(terminal)==1 and terminal[0].get('exit_code')==0,(result.returncode,result.stderr,events)
+assert 'SYNTHETIC_DISTINCT_UID_OK' in terminal[0].get('text','')
+assert any(e.get('type')=='tool_result' and e.get('name')=='read_file' for e in events)
+checks.append('actual_native_hermes_file_loop_as_tool_uid')
+print(json.dumps({'uid':os.getuid(),'gid':os.getgid(),'hermes_pid':process.pid,'cgroup_measurement':cgroup_measurement,'cgroup':Path('/proc/self/cgroup').read_text(),'status':{line.split(':')[0]:line.split(':',1)[1].strip() for line in Path('/proc/self/status').read_text().splitlines() if line.split(':')[0] in ('Uid','Gid','CapEff','CapBnd','NoNewPrivs','Seccomp','Seccomp_filters')},'passed':len(checks),'failed':0,'checks':checks,'denials':denials,'hermes_version':importlib.metadata.version('hermes-agent'),'cli_exit':result.returncode,'events':events,'stderr':result.stderr[-2000:],'synthetic_only':True}))

@@ -1,0 +1,58 @@
+"""Activate the staged loopback MCP service and private Tailscale path only."""
+
+# Archived one-off operation; use the supported host installer instead.
+raise SystemExit('Archived operation is disabled. See docs/AGENT-SETUP.md for supported installation.')
+
+import hashlib,json,os
+from urllib.request import urlopen
+from urllib.error import HTTPError, URLError
+from pathlib import Path
+import shutil,socket,subprocess,time
+
+def run(*args):return subprocess.check_output(args,text=True).strip()
+def main():
+    assert os.geteuid()==0 and socket.gethostname()=='archived-worker.invalid'
+    current=json.loads(run('tailscale','serve','status','--json'))
+    host='worker.example.invalid:443'
+    handlers=current['Web'][host]['Handlers']
+    assert '/mcp' not in handlers and '/mcp/' not in handlers
+    assert handlers['/']=={'Proxy':'http://127.0.0.1:7780'}
+    assert not any(current.get('AllowFunnel',{}).values())
+    unit=Path('/etc/systemd/system/cloud-workbench-mcp.service');assert not unit.exists()
+    backup=Path('/var/lib/cloud-workbench/operator-backups')/('private-mcp-'+time.strftime('%Y%m%dT%H%M%SZ',time.gmtime()))
+    backup.mkdir(mode=0o700);(backup/'tailscale-serve.json').write_text(json.dumps(current,indent=2)+'\n')
+    before={n:run('systemctl','show',n,'--property=MainPID','--value') for n in ('cloud-workbench-api','cloud-workbench-worker','cloudd')}
+    staging=Path('/tmp/omarchy-mcp-deploy')
+    shutil.copy2(staging/'provision-delegation-client.py','/opt/omarchy-mcp/provision-delegation-client.py')
+    shutil.copy2(staging/'cloud-workbench-mcp.service',unit)
+    receipt={'backup':str(backup),'endpoint':'https://worker.example.invalid/mcp','stage':'prepared'}
+    try:
+        run('systemd-analyze','verify',str(unit))
+        run('systemctl','daemon-reload');run('systemctl','enable','--now','cloud-workbench-mcp')
+        assert run('systemctl','is-active','cloud-workbench-mcp')=='active'
+        deadline=time.monotonic()+15
+        while True:
+            try:
+                urlopen('http://127.0.0.1:7781/health',timeout=1)
+            except HTTPError as exc:
+                if exc.code==401:break
+                raise
+            except (URLError,TimeoutError):
+                if time.monotonic()>=deadline:raise RuntimeError('MCP listener did not become ready')
+                time.sleep(0.2)
+            else:raise RuntimeError('MCP unexpectedly accepted unauthenticated health request')
+        run('tailscale','serve','--bg','--https=443','--set-path=/mcp','http://127.0.0.1:7781')
+        after=json.loads(run('tailscale','serve','status','--json'))
+        assert after['Web'][host]['Handlers']['/']==handlers['/']
+        assert not any(after.get('AllowFunnel',{}).values())
+        assert all(run('systemctl','show',n,'--property=MainPID','--value')==pid for n,pid in before.items())
+        receipt.update(stage='activated',serve=after,existing_service_pids=before,
+            server_sha256=hashlib.sha256(Path('/opt/omarchy-mcp/server.py').read_bytes()).hexdigest())
+    except BaseException:
+        subprocess.run(['tailscale','serve','--https=443','--set-path=/mcp','off'],capture_output=True)
+        subprocess.run(['systemctl','disable','--now','cloud-workbench-mcp'],capture_output=True)
+        receipt['stage']='rolled_back'
+        raise
+    finally:(backup/'receipt.json').write_text(json.dumps(receipt,indent=2)+'\n')
+    print(json.dumps(receipt,indent=2))
+if __name__=='__main__':main()

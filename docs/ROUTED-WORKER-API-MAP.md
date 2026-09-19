@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Routed worker integration handoff
 
 Historical map from the earlier driver checkpoint. For the current implemented WorkerService, root provisioning primitive and combined cleanup APIs, use ROUTED-WORKER-INTEGRATION.md, ROUTED-BOOTSTRAP.md, WORKER-SERVICE-LIFECYCLE.md and ROUTED-CHILD-CLEANUP.md. Statements below that those components do not exist describe the earlier source snapshot.

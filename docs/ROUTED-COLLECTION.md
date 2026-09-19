@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Routed caller observations and output collection
 
 `collect_execution(read_file, *, launch_receipt_sha256, limits=CollectionLimits(), clock=None)` reads a terminal worker observation while the caller init container remains running. The trusted driver supplies a closure over the exact admitted spec and full runtime ID, calling `RoutedRuntime.read_caller_file` with the collector's fixed `name`, `offset` and `max_bytes` arguments. The closure must check current attempt, generation, owner, cancellation and reservation authority before each RPC. Collection itself performs no Store transition or runtime mutation.

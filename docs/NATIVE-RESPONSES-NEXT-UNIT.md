@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Next bounded implementation unit: native Responses adapter
 
 Goal: prove the exact Astra/high, Sol/max and Grok4.6/xhigh inference/tool roundtrip through a disposable provider process while Hermes remains the tool executor. This is a provider boundary addition, not another scheduler, credential discovery system or direct Codex/Grok agent delegation.

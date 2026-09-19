@@ -1,25 +1,22 @@
-# Build inputs and deployment boundaries
+# Build inputs and installation
 
-The repository includes project source and recipes. It excludes machine state,
-credentials, third-party source archives, and built images. Existing worker
-images on Omarchy are deployment artifacts, not files stored in GitHub.
+For a fresh worker host, follow [host installation](docs/HOST-INSTALL.md).
+For the machine running your existing agent, follow [caller setup](docs/QUICKSTART.md).
+The agent entry point is [AGENTS.md](AGENTS.md).
 
 ## Set up a worker computer
 
-This is the operator path for hosting workers on your own machine. If a worker
-host is already available, use [Connect an agent](docs/QUICKSTART.md) instead.
+`scripts/install-host.py --plan` reports prerequisites without making changes.
+The explicit `--apply` path builds a new Linux host installation, with dedicated
+service accounts, private Tailscale routing, caller authentication and an immutable
+environment manifest. It refuses existing unmanaged deployments. See the host
+guide for required arguments, provider login and current verification limits.
 
-Fresh-host setup is currently manual. The deployment recipes target the
-configured Linux/Omarchy host; they are not a cross-platform installer.
-
-1. Check the [hardware and resource limits](docs/STATUS.md#resources).
-2. Prepare the pinned sources and image layers described below.
-3. Provision the task service, runtime configuration, and provider credentials
-   using the [architecture guide](docs/ARCHITECTURE.md) and referenced deployment docs.
-4. Configure private Tailscale access and the
-   [MCP service and caller credentials](integrations/omarchy-mcp/README.md).
-5. [Connect your calling agent](docs/QUICKSTART.md). Add
-   [desktop viewing](docs/DESKTOP.md) if you need to watch tasks.
+`deploy/Dockerfile.portable` starts from a public pinned base and builds the
+Hermes/browser/Crabbox/desktop/evidence/SOUL image without a pre-existing local
+image or private sibling checkout. Operator credentials are not build inputs.
+The install source manifest uses tracked allowlisted files, not the whole home
+or an arbitrary Docker context.
 
 ## Pinned upstream source
 
@@ -30,33 +27,40 @@ configured Linux/Omarchy host; they are not a cross-platform installer.
 | pstack Hermes port | `jmporchet/pstack-hermes` | `204e77a7a011c4613dc9c4913a481d77cc0ebe54` |
 | agent-browser | `vercel-labs/agent-browser` | `v0.38.1` / `aff6125c023b810ea3f2e5deec5379e9a4270bdc` |
 
-Clone Hermes and the pstack port from those repositories, check out the exact
-revisions, then use `scripts/prepare-hermes-image-context.py --hermes PATH
---pstack PATH --destination NEW_DIRECTORY`. The tool uses tracked archives,
-refuses dirty/wrong revisions, preserves upstream license files, and creates a
-source hash manifest. It must never archive a personal Hermes home or login.
+Binary release hashes and public base pins live in the installer and portable
+Dockerfile. Source revisions and licenses are recorded in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Keep these licenses in derived
+images and retain distribution notices for their other dependencies.
 
-Dockerfiles describe the successive layers: Hermes, browser, Crabbox SSH
-integration, desktop, optional pstack routing, evidence tooling, and worker SOUL.
-They expect named input files in the prepared build context. Some scripts use
-the original local `../work/` context layout and existing base-image IDs; read
-the script and deployment guide before choosing the appropriate build path.
-Do not assume a fresh clone alone can recreate the full live machine.
+`scripts/prepare-hermes-image-context.py` remains a developer utility for making
+a pinned source context from explicit `--hermes`, `--pstack`, and `--destination`
+paths. The older layered Dockerfiles and archived migrations document the initial
+implementation; the portable installer does not replay those migrations.
 
-The copied agent-browser core skill is already included with its Apache license.
-Acquire the native binary separately from the matching upstream release when
-building the evidence image; do not substitute an unreviewed latest version.
-Keep upstream licenses in any resulting image containing upstream work.
+## Caller package
 
-## Private configuration
+```sh
+python3 integrations/omarchy-mcp/build_package.py
+```
 
-Provision service principals, provider access, Tailscale, environment registry,
-and runtime images separately. Never commit auth files, OAuth responses,
-1Password exports, client tokens, live databases, or task output. Host-specific
-paths in operator scripts are deployment defaults, not embedded credentials.
+The portable skill ZIP contains instructions and Python clients, not an endpoint
+credential. Prefer `scripts/install-delegation-skill.py --server YOUR_ORIGIN` to
+install the skill with the correct host settings. A generic downloaded bundle
+requires explicit `OMARCHY_CLOUD_SERVER` configuration before use.
 
-The MCP environment uses its own pinned requirements. Generate its skill ZIP
-with `python3 integrations/omarchy-mcp/build_package.py` before deployment.
-See [the MCP guide](integrations/omarchy-mcp/README.md) for the current deployment
-and caller provisioning procedure. Publication of the repo does not change
-running services or onboard a new caller.
+## Development checks
+
+```sh
+python3 -m venv .venv
+.venv/bin/pip install -e '.[test]'
+.venv/bin/python -m pytest
+```
+
+MCP checks additionally need `integrations/omarchy-mcp/requirements.lock` in the
+test environment. Optional historical/provider tests require explicitly supplied
+external fixtures; missing private rollout files are skips, not installation
+failures or evidence that those integrations passed.
+
+Never commit auth files, OAuth responses, secret-manager exports, client tokens,
+live databases or private task output. Source publication does not deploy the
+runtime or grant anyone access to a running host.

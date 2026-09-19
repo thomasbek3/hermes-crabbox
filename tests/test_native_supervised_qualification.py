@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 ROOT=Path(__file__).resolve().parents[1]
-PATH=ROOT/'scripts/qualify-native-supervised-linux.py'
+PATH=ROOT/'scripts/legacy/qualify-native-supervised-linux.py'
 spec=importlib.util.spec_from_file_location('native_supervised_proof',PATH)
 proof=importlib.util.module_from_spec(spec);spec.loader.exec_module(proof)
 
@@ -20,8 +20,8 @@ def test_new_budget_and_recovery_dependencies_are_snapshotted():
     assert {'budget_authority.py','provider_recovery.py','supervised_executor.py'}<=set(proof.MODULES)
     assert len(proof.MODULES)==len(set(proof.MODULES))
     for name in proof.MODULES:ast.parse((ROOT/'src/cloudworkbench'/name).read_text())
-    for name in ('qualify-native-supervised-linux.py','qualify-native-supervised-caller.py'):
-        ast.parse((ROOT/'scripts'/name).read_text())
+    for name in ('qualify-native-supervised-linux.py','qualify-native-supervised-caller.py.txt'):
+        ast.parse((ROOT/'scripts/legacy'/name).read_text())
 
 
 def test_validator_rejects_incomplete_execution():
@@ -31,6 +31,8 @@ def test_validator_rejects_incomplete_execution():
 def canonical():
     import json
     base=ROOT/'evidence/native-supervised-linux-20260918T012005Z'
+    if not all(base.with_suffix(s).is_file() for s in ('.json', '.source-snapshot.json', '.harness.py')):
+        pytest.skip('Optional historical native Docker evidence is not distributed')
     return json.loads(base.with_suffix('.json').read_text()),json.loads(base.with_suffix('.source-snapshot.json').read_text()),base.with_suffix('.harness.py').read_bytes()
 
 

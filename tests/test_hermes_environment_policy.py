@@ -89,7 +89,8 @@ def test_invalid_hermes_policy_mapping_refused(qualified,policy):
 def test_hermes_cannot_adopt_claude_or_other_manifest_policy(qualified,delta):
     runner,registry,manifest,a=qualified
     candidate=pinned(runner,registry,a,{**manifest,**delta})
-    with pytest.raises(PolicyRejected,match='network/secret'):
+    expected = 'network profile is not allowed' if 'network_profile' in delta else 'network/secret'
+    with pytest.raises(PolicyRejected,match=expected):
         runner.environment_project(candidate)
 
 

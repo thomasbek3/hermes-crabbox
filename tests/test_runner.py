@@ -14,6 +14,7 @@ class FakeRuntime:
 
     def __init__(self, root):
         self.root = root
+        self.config = {'image': self.image}
         self.runtimes = {}
         self.launches = []
         self.stops = []

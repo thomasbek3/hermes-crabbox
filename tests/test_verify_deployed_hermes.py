@@ -7,7 +7,7 @@ import sys
 import pytest
 
 ROOT=Path(__file__).resolve().parents[1]
-spec=importlib.util.spec_from_file_location('verify_deployed_hermes',ROOT/'scripts/verify-deployed-hermes.py')
+spec=importlib.util.spec_from_file_location('verify_deployed_hermes',ROOT/'scripts/legacy/verify-deployed-hermes.py')
 v=importlib.util.module_from_spec(spec);spec.loader.exec_module(v)
 SID='11111111-1111-1111-1111-111111111111';AID='22222222-2222-2222-2222-222222222222'
 NATIVE='20260918_151018_79c714'

@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Actual Docker supervised provider qualification
 
 Canonical execution: `evidence/supervised-provider-linux-20260918T010306Z.json`. The matching `.source-snapshot.json` contains every transferred controller module and hash; `.harness.py` preserves the executed harness. Target was verified as Omarchy; execution used a new root-owned private temporary directory and isolated Store database/account. No production Store, credentials, service configuration or live agent state was modified.

@@ -93,7 +93,7 @@ def test_disabled_until_all_dependencies_configured(tmp_path):
 
 
 @pytest.mark.parametrize('changes', [dict(address='127.0.0.1'), dict(address='169.254.169.254'),
-    dict(address='100.83.74.92'), dict(address='1.1.1.1'), dict(address='host.example'),
+    dict(address='100.64.0.10'), dict(address='1.1.1.1'), dict(address='host.example'),
     dict(address='0.0.0.0'), dict(address='224.0.0.1'), dict(container_id='short'),
     dict(network_id='short'), dict(port=0), dict(port=True), dict(protocol='file')])
 def test_backend_validation(f, changes):

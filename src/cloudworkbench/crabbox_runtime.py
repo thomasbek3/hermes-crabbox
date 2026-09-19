@@ -139,13 +139,13 @@ class CrabboxRuntime(HermesCoordinatorRuntime):
                 or any(value not in self.crabbox_images for value in self.crabbox_desktop_images)
                 or any(value not in self.crabbox_images for value in self.crabbox_pstack_images)):
             raise RuntimeError('invalid Crabbox image capability policy')
-        self.pstack_credential_paths = {
-            name: _path(config[field]) if field in config else Path(default)
-            for name, field, default in (
-                ('anthropic', 'crabbox_pstack_claude_token', '/var/lib/cloud-workbench/auth/claude-token'),
-                ('openai-codex', 'crabbox_pstack_codex_auth',
-                 '/var/lib/cloud-workbench/auth/native-login-20260918/codex/.codex/auth.json'),
-                ('jev', 'crabbox_pstack_jev_key', '/var/lib/cloud-workbench/auth/typesafe-key'))}
+        credential_fields = {'anthropic': 'crabbox_pstack_claude_token',
+                             'openai-codex': 'crabbox_pstack_codex_auth',
+                             'jev': 'crabbox_pstack_jev_key'}
+        if self.crabbox_pstack_images and any(not config.get(field) for field in credential_fields.values()):
+            raise RuntimeError('pstack images require explicit Claude, Codex and Jev credential paths')
+        self.pstack_credential_paths = {name: _path(config[field])
+                                        for name, field in credential_fields.items() if config.get(field)}
         self.crabbox_root = _path(self.hermes_journal_root.parent / 'crabbox-runtime')
         self.crabbox_root.mkdir(mode=0o700, exist_ok=True)
         info = self.crabbox_root.stat()
@@ -153,6 +153,8 @@ class CrabboxRuntime(HermesCoordinatorRuntime):
             raise RuntimeError('unsafe Crabbox state directory')
 
     def pstack_credentials(self):
+        if len(self.pstack_credential_paths) != 3:
+            raise RuntimeError('Crabbox pstack credential paths are not configured')
         return {'anthropic': _pstack_secret(self.pstack_credential_paths['anthropic']),
                 'openai-codex': _codex_access(self.pstack_credential_paths['openai-codex']),
                 'jev': _pstack_secret(self.pstack_credential_paths['jev'])}
@@ -220,7 +222,7 @@ class CrabboxRuntime(HermesCoordinatorRuntime):
     def launch(self, attempt_id, session_id, argv, env, mounts=None, *, generation=1):
         if argv != HERMES_ARGV or self.image not in self.crabbox_images:
             return super().launch(attempt_id, session_id, argv, env, mounts, generation=generation)
-        if env or self.tool_network != 'bridge' or (self.uid, self.gid) != (958, 959):
+        if env or self.tool_network != 'bridge':
             raise RuntimeError('invalid Crabbox launch policy')
         workspace = self.make_workspace(session_id)
         native = self.native_state(session_id)
@@ -279,7 +281,7 @@ class CrabboxRuntime(HermesCoordinatorRuntime):
         save(payload/'request.json', request)
         os.chown(payload/'request.json', -1, self.gid); (payload/'request.json').chmod(0o640)
         launcher = ('#!/bin/sh\nset -eu\n'
-                    'sudo -n chown 958:959 /agent-state\n'
+                    f'sudo -n chown {self.uid}:{self.gid} /agent-state\n'
                     'cd /workspace\n'
                     'exec /opt/hermes/venv/bin/python /opt/cloudworkbench/crabbox_guest.py < /job-launcher/request.json\n')
         (payload/'start.sh').write_text(launcher)

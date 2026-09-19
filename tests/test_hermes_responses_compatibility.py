@@ -14,8 +14,10 @@ SPEC.loader.exec_module(proof)
 
 @pytest.fixture(scope='module')
 def qualified():
-    source = Path(os.environ.get('CWB_HERMES_SOURCE', ROOT.parent / 'work/hermes-pstack-image-context/hermes'))
-    python = Path(os.environ.get('CWB_HERMES_DEPENDENCY_PYTHON', Path.home() / '.hermes/hermes-agent/venv/bin/python'))
+    if not os.environ.get('CWB_HERMES_SOURCE') or not os.environ.get('CWB_HERMES_DEPENDENCY_PYTHON'):
+        pytest.skip('Set CWB_HERMES_SOURCE and CWB_HERMES_DEPENDENCY_PYTHON for optional pinned Hermes integration')
+    source = Path(os.environ['CWB_HERMES_SOURCE'])
+    python = Path(os.environ['CWB_HERMES_DEPENDENCY_PYTHON'])
     if not (source / 'agent/codex_runtime.py').is_file() or not python.is_file():
         pytest.skip('Pinned Hermes source archive and existing dependency interpreter required; no downloads/install in this test')
     return proof.run_isolated(source, python)

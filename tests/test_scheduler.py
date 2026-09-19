@@ -355,6 +355,8 @@ def test_migrate_actual_previous_store_source(tmp_path):
     import types
     from pathlib import Path
     previous=Path(__file__).parents[1]/'evidence/role-child-scheduler-review-snapshot/src/cloudworkbench/store.py'
+    if not previous.is_file():
+        pytest.skip('Optional previous-release store snapshot is not distributed')
     module=types.ModuleType('cloudworkbench._previous_store')
     module.__package__='cloudworkbench'
     exec(compile(previous.read_text(),str(previous),'exec'),module.__dict__)

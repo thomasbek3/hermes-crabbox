@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Protected verification composition qualification
 
 `scripts/qualify-routed-verification-linux.py` is an opt-in wrapper around a byte-for-byte frozen copy of the existing routed driver qualification harness. It does not edit or replace that harness. Preparation freezes the wrapper, driver, caller helper, and transitive application source closure; parent execution remains a separate step.

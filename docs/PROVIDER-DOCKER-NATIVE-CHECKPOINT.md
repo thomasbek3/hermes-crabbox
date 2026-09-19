@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Native provider Docker checkpoint
 
 Local implementation only. No image build, deployment, real provider call, credential read, account registration or live schema change occurred. Fable review is pending: parent reported the reviewer account session limit and instructed this unit not to start another review while that limit remains unchanged. Earlier Claude-only review/live receipts do not qualify this new branch.

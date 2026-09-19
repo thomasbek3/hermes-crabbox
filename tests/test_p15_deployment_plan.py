@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 import pytest
 
-spec=importlib.util.spec_from_file_location('p15_deploy',Path(__file__).parents[1]/'scripts/deploy-p15-api-checkpoint.py')
+spec=importlib.util.spec_from_file_location('p15_deploy',Path(__file__).parents[1]/'scripts/legacy/deploy-p15-api-checkpoint.py')
 deploy=importlib.util.module_from_spec(spec);spec.loader.exec_module(deploy)
 
 def setup(tmp_path):
@@ -13,7 +13,7 @@ def setup(tmp_path):
     for name in names:
         path=tmp_path/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_text('source');hashes[name]=deploy.sha(path)
     manifest={'files':hashes,'p15_api_overlay':{'publish_files':sorted(deploy.PUBLISH)}}
-    base={'passed':True,'host':'omarchy','deployed_source_sha256':hashes.copy()}
+    base={'passed':True,'host':'archived-worker.invalid','deployed_source_sha256':hashes.copy()}
     (tmp_path/'manifest.json').write_text(json.dumps(manifest));return manifest,base
 
 def test_exact_host_only_publication_scope(tmp_path):

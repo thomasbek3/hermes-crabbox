@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 import pytest
 
-PATH=Path(__file__).resolve().parents[1]/'scripts/qualify-routed-caller-linux.py'
+PATH=Path(__file__).resolve().parents[1]/'scripts/legacy/qualify-routed-caller-linux.py'
 spec=importlib.util.spec_from_file_location('routed_qualification',PATH)
 module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
 
@@ -28,7 +28,7 @@ def receipt(value):
     case['stop_receipt']={'caller_stopped':True,'caller_removed':False,'runtime_id':case['runtime_id'],
         'attempt_id':binding['attempt_id'],'generation':1,'provider_cleanup_qualified':False}
     case['remove_receipt']={**case['stop_receipt'],'caller_removed':True}
-    return {'passed':True,'run_id':value['run_id'],'image':value['image'],'host':'omarchy','source_hashes':value['hashes'],
+    return {'passed':True,'run_id':value['run_id'],'image':value['image'],'host':'archived-worker.invalid','source_hashes':value['hashes'],
             'harness_sha256':value['harness_sha256'],'real_provider_calls':False,'real_credentials_used':False,
             'services_before':{name:{'ActiveState':'active','MainPID':'123'} for name in module.SERVICES},'services_after':{name:{'ActiveState':'active','MainPID':'123'} for name in module.SERVICES},'started_at':'2026-09-17T00:00:00+00:00','finished_at':'2026-09-17T00:01:00+00:00','headroom_before':{'memory_available_kib':8*1024**2,'docker_available_bytes':8*1024**3},'headroom_after':{'memory_available_kib':8*1024**2,'docker_available_bytes':8*1024**3},'remaining':[],'cleanup_complete':True,'cases':[case]}
 

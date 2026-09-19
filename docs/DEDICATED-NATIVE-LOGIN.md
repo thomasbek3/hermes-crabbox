@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Dedicated native provider device logins
 
 Prepared on verified host `omarchy` as root, then initiated only as cloud-worker UID959/GID960. New private root `/var/lib/cloud-workbench/auth/native-login-20260918` owns separate `codex` and `grok` HOME trees; each0700. No personal auth/config was copied. Native binaries were copied from installed distributions to the new private bin directory and SHA matched. They are unchanged, root-owned0555 files under the new worker-owned setup directory; pin/copy into a reviewed production image remains separate.
@@ -22,7 +27,7 @@ sudo -u cloud-worker env -i \
  /var/lib/cloud-workbench/auth/native-login-20260918/bin/grok login --device-auth
 ```
 
-Grok1.0.34 rejects combining `--oauth` with `--device-auth`; the device flag alone produces the xAI browser flow. Clean environment removes ambient keys, profiles, D-Bus/keychain references and loader variables. Worker UID cannot traverse Thomas's personal home. These facts establish scoped setup, not a proof against malicious installed binary code.
+Grok1.0.34 rejects combining `--oauth` with `--device-auth`; the device flag alone produces the xAI browser flow. Clean environment removes ambient keys, profiles, D-Bus/keychain references and loader variables. Worker UID cannot traverse the operator's personal home. These facts establish scoped setup, not a proof against malicious installed binary code.
 
 Only browser verification URL/user-entry code are surfaced to the owner. OAuth polling protocol device codes, token responses and saved credential contents are never printed. Login completion must be established from CLI terminal status and metadata, not presumed from browser click. No inference calls, model entitlement claims, service changes, production config references, automated refresh or credential reuse occur here. Login authorization and billed inference authorization remain separate.
 

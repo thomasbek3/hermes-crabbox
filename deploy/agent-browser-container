@@ -1,6 +1,9 @@
 #!/bin/sh
 set -eu
-if [ -x /opt/playwright/chromium-1243/chrome-linux64/chrome ]; then
+if [ -r /opt/cloud-tools/chromium-path ]; then
+  export AGENT_BROWSER_EXECUTABLE_PATH="${AGENT_BROWSER_EXECUTABLE_PATH:-$(cat /opt/cloud-tools/chromium-path)}"
+  export AGENT_BROWSER_ARGS="${AGENT_BROWSER_ARGS:---no-sandbox,--disable-dev-shm-usage}"
+elif [ -x /opt/playwright/chromium-1243/chrome-linux64/chrome ]; then
   export AGENT_BROWSER_EXECUTABLE_PATH="${AGENT_BROWSER_EXECUTABLE_PATH:-/opt/playwright/chromium-1243/chrome-linux64/chrome}"
   export AGENT_BROWSER_ARGS="${AGENT_BROWSER_ARGS:---no-sandbox,--disable-dev-shm-usage}"
 fi

@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # CLI feasibility boundary, refreshed 2026-09-17
 
 The current official [CLI reference](https://code.claude.com/docs/en/cli-reference) documents disabling built-in tools, denying tools, strict MCP selection, structured JSON output, bounded turns, and setup-token for scripts. Safe mode alone retains built-in tools. The controls support the proposed experiment, but their combined behavior at the pinned binary must be measured. This is documentation evidence, not a passing real transport request.

@@ -1,10 +1,15 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 > 2026-09-18 job budget update: Omarchy native Hermes now allows two hours / 1,000 model steps per submitted job or follow-up; capture7,320s, Hermes supervisor7,500s. No automatic parent checks or test jobs. See BASIC-DELEGATION-STATUS.md and evidence/job-budget-deployment-20260918.json.
 
 # Current build status
 
 Latest web update, 2026-09-18: Internet + Chromium/Playwright profile `hermes-tasks-web-v2` is deployed and both Mac callers default to it. Workspace8GiB; tool memory3GiB; max3 tasks. It is explicitly operator approved but unqualified; no new test/browser job ran. See `BASIC-DELEGATION-STATUS.md` for current handoff and remaining original-spec scope.
 
-Latest update, 2026-09-18: Thomas resumed the simplified basic-delegation build.
+Latest update, 2026-09-18: the original operator resumed the simplified basic-delegation build.
 Native Hermes is now enabled in the persistent Omarchy API/worker; the generic
 `hermes-tasks/hermes-tasks-v1` project and three-task queue configuration are
 deployed. Both Mac minis have the new `omarchy-cloud` caller tool/skill and private
@@ -13,7 +18,7 @@ run. The full original spec and multi-model workflow remain incomplete. See
 `BASIC-DELEGATION-STATUS.md` for current scope, deployment receipts and limits.
 Statements about undeployed native Hermes below are historical snapshots.
 
-Thomas stopped further verification and checkpoint-review work on 2026-09-18.
+the original operator stopped further verification and checkpoint-review work on 2026-09-18.
 Implementation remains authorized; unfinished checks stay explicitly unverified.
 Do not launch the prepared deployment acceptance or provider qualification runs.
 
@@ -51,7 +56,7 @@ Grok 4.6/xhigh returned a scoped PASS on the corrected review packet
 retained as partial. The small later CAP_ / skills metadata correction has separate
 tests and actual live proof; it was not in that Grok snapshot. Fable was attempted
 again for this checkpoint and returned an account-limit error with no verdict
-(`reviews/hermes-api-fable-review.stderr`). Thomas subsequently replaced Fable
+(`reviews/hermes-api-fable-review.stderr`). the original operator subsequently replaced Fable
 checkpoint reviews with the Grok skill, using Grok 4.6/xhigh. Fable is no longer a
 checkpoint gate. The copied environment registry passed both offline qualification
 probes, preserving existing rows and active versions. The frozen activation script
@@ -82,7 +87,7 @@ API proof is recorded above; deployed UI/API acceptance remains pending.
 The tested foundation is reusable, but too much controller machinery preceded
 this basic journey. Next work should connect the proven journey, not expand
 abstractions. Full scope remains incomplete and active; checkpoint reviews now
-use Grok 4.6/xhigh under Thomas's explicit replacement instruction.
+use Grok 4.6/xhigh under the operator's explicit replacement instruction.
 
 ## Locked workflow
 
@@ -129,7 +134,7 @@ The driver now saves exact validated result/event bytes to a private controller 
 
 Bounded stopped-workspace export, durable export reload, authorized observation publication and immutable candidate capture are implemented. Publication rechecks current authority and exact combined cleanup in its final transaction. Worker observations and candidates remain explicitly unverified; they cannot pass workflow gates or promote a delivered revision. The coordinated local suite passed **558 tests in 38.88 seconds** (`evidence/routed-result-durable-integration-tests.xml`). This is an affected-suite result, not full-platform acceptance.
 
-Actual UID959/UID1000 export qualification now passes: private0600 tool files were exported through the pinned networkless collector, then restored under a fresh runtime view with no create/start calls. Source hashes, exact cleanup and unchanged live service PIDs were verified (`evidence/routed-export-linux-20260918-v3.json` and its transfer receipt). The first two failed runs are preserved: their fixture inherited a 512 MiB virtual-address limit incompatible with the Docker Go CLI. A read-only same-UID probe confirmed the cause; only the harness limit changed to 4 GiB, with53 harness tests passing. No application change was needed. Fable returned its account usage-limit error on the initial review and one bounded retry, so no Fable review verdict exists for this checkpoint. At Thomas's request, Grok 4.6/xhigh completed a read-only partial review and returned REVISE. It reported missing packet context, so this is not full-platform sign-off. Independent inspection confirms an activation recovery gap: complete worker orchestration must mandate exact reconciliation after uncertain export operations. Its candidate replay concern was disproved by content-addressed capture and77 passing focused tests. That review also identified the missing controller-known-secret predicate before private snapshot persistence. The following correction checkpoint addresses this and result-phase reconciliation; production root/startup composition remains pending. Resetting uncertain journals or treating unexplained disappearance as successful removal is rejected. Full findings/disposition: reviews/routed-result-grok.md and reviews/routed-result-grok-disposition.md.
+Actual UID959/UID1000 export qualification now passes: private0600 tool files were exported through the pinned networkless collector, then restored under a fresh runtime view with no create/start calls. Source hashes, exact cleanup and unchanged live service PIDs were verified (`evidence/routed-export-linux-20260918-v3.json` and its transfer receipt). The first two failed runs are preserved: their fixture inherited a 512 MiB virtual-address limit incompatible with the Docker Go CLI. A read-only same-UID probe confirmed the cause; only the harness limit changed to 4 GiB, with53 harness tests passing. No application change was needed. Fable returned its account usage-limit error on the initial review and one bounded retry, so no Fable review verdict exists for this checkpoint. At the operator's request, Grok 4.6/xhigh completed a read-only partial review and returned REVISE. It reported missing packet context, so this is not full-platform sign-off. Independent inspection confirms an activation recovery gap: complete worker orchestration must mandate exact reconciliation after uncertain export operations. Its candidate replay concern was disproved by content-addressed capture and77 passing focused tests. That review also identified the missing controller-known-secret predicate before private snapshot persistence. The following correction checkpoint addresses this and result-phase reconciliation; production root/startup composition remains pending. Resetting uncertain journals or treating unexplained disappearance as successful removal is rejected. Full findings/disposition: reviews/routed-result-grok.md and reviews/routed-result-grok-disposition.md.
 
 ## Result recovery and secret-policy correction — local checks passed
 

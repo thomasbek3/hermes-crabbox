@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Controller account reservation contract
 
 This module adds account ownership and request/refresh exclusion to the controller's existing SQLite database. It does not activate a provider service, launch containers, provision credentials or implement bearer authentication. `ProviderLeases` requires a trusted cleanup verifier and inspector identity at construction. All IDs are internal database references, never permission to call a public API.

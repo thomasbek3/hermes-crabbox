@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Next unit: protected decisions and revision advancement
 
 Current result composition persists unverified observations/candidates and exact cleanup evidence. It does not decide workflow success. Existing publication authority requires child state preparing/running, so finish result publication before entering verifying or a terminal state. Terminal recovery must use a durable decision receipt, not repeat publication under invalid authority.

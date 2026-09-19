@@ -27,9 +27,9 @@ PY
 Use the task's actual URL. This example closes its window after the screenshot;
 keep the browser process running while a user needs to interact with it. To
 open a regular graphical window, run `chromium URL` from the task terminal.
-The root-owned `chromium` wrapper invokes the existing Playwright Chromium at
-`/opt/playwright/chromium-1243/chrome-linux64/chrome`; it does not install or
-substitute Firefox. `PLAYWRIGHT_BROWSERS_PATH=/opt/playwright` is already set.
+The root-owned `chromium` wrapper invokes the installed Playwright Chromium.
+The portable image records its executable in `/opt/cloud-tools/chromium-path`;
+it does not install or substitute Firefox. `PLAYWRIGHT_BROWSERS_PATH=/opt/playwright` is already set.
 
 The guest accepts the desktop environment only when the launch supplies
 `CRABBOX_DESKTOP=1` and `DISPLAY=:99`. It keeps the job's private `HOME` and

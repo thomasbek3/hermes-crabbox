@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Provider executor composition
 
 ProviderExecutor is a trusted worker callback for WorkerDispatcher.execute_request. The controller supplies the exact account reservation, execution grant, immutable AttemptBinding, qualified PinnedCLI profile and remaining-root-budget reader. It verifies current durable grant and attempt/generation, checks the authenticated payload digest, admits the native Hermes request through the bounded codec, and sends only canonical transcript bytes to ProviderDispatch with the same64hex nonce.

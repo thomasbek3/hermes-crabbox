@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # D9 durable dispatch foundation
 
 This local module separates the persistent logical provider account owner from each disposable request's provider container, gateway container, internal network and external network. It has no listener, Docker adapter, provider invocation, token access or deployment integration. Internal IDs are not bearer credentials. Only the existing trusted worker may compose this API with authenticated role routing and credential provisioning.

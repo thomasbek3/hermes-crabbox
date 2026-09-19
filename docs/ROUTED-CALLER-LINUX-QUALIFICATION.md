@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Routed caller Linux qualification harness
 
 Status: prepared, **not executed by this checkpoint**. The 22 local tests validate the archive, synthetic native Responses frames and receipt rejection rules. Actual Linux results must be recorded separately.

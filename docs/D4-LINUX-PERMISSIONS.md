@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Isolated D4 Linux permissions proof
 
 This is a bounded disposable qualification on **omarchy**, reached as thomas UID1000 over the previously authorized SSH endpoint. The driver verified exact Linux/amd64 image `sha256:5a03c9d2d1fc20683029c47683a3b0470ad2d7ce79eeb43ced1bdfba10770693` before creating any container. Source was frozen, hashed, copied into a root-owned private staging directory and mounted read-only. The current broker/transport source was an explicit fixture overlay; this does not prove those modules or the native D8 patch are already installed in the image or deployed services.

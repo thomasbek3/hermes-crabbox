@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Owned worker socket service lifecycle
 
 `WorkerService(server: WorkerSocketServer, *, poll_seconds=.05)` takes exclusive ownership of a newly constructed, unstarted synchronous Unix socket server and its exact `WorkerDispatcher`. Do not run `serve_forever`, manipulate `server.dispatcher`, or close the original dispatcher/journal from another owner after constructing this wrapper. A server already managed by the wrapper is refused. The constructor cannot detect an unrelated caller already serving a raw server; unstarted exclusive handoff is a trusted controller prerequisite.

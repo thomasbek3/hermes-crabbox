@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Native Responses provider boundary
 
 `native_responses.py` performs one bounded HTTP inference request. Hermes generates native Responses input and executes returned function tools. This module never invokes an agent CLI, discovers credentials, refreshes OAuth, retries, starts containers or changes existing deployments.

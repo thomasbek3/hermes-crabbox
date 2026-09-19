@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Protected check runtime: isolated Linux qualification
 
 Actual Omarchy run `verifierqual-633ea851f3b041b7` passed eight synthetic container scenarios against 43 hash-bound current controller modules. Evidence is `evidence/routed-verifier-linux-v4.json` and its frozen `-source.json`. The one-shot harness is `evidence/prove-routed-verifier-linux.py`.

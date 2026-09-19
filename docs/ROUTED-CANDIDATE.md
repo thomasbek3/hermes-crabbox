@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Produced workspace candidates
 
 `capture_exported_candidate` composes the stopped-workspace export with existing immutable `WorkspaceRevision` capture. The trusted controller passes its original `PreparedStage`, exact `CallerSpec` and `QuiescedStage`, the live `RoutedChildCleanup` handle, and a `WorkspaceExport` whose collector has already been removed. The original materialization's device/inode must match the exported workspace. The private export journal binds the returned file bytes and original caller identity; constructing a dataclass is insufficient.

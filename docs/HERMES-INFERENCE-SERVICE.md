@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Private inference HTTP boundary
 
 `InferenceService` exposes one `/v1/chat/completions` request per connection. The controller supplies a SHA256 digest of a random 256-bit execution capability, a trusted current-authorization callback, and an execution callback. The service never loads provider credentials, issues grants, chooses models or executes tools. Local tests bind loopback. Production must bind only inside the isolated provider network without publishing a host port; no deployment is currently configured.

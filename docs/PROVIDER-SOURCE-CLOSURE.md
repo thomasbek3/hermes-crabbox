@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Provider qualification source closure
 
 The current executor and supervisor import `provider_protocol.py`, which imports `native_responses.py`. All three explicit controller source lists now include both modules: `qualify-native-supervised-linux.py`, `qualify-supervised-provider-linux.py`, and `qualify-real-provider-guarded.py`. The supervised-only harness also now includes `provider_recovery.py`, an existing wrapper dependency. The real qualification example has the exact new set of null source hashes; it remains unauthorized and non-executable until its independent prerequisites are satisfied.

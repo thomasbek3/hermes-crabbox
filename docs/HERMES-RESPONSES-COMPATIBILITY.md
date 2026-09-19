@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Pinned Hermes Responses compatibility — local synthetic proof
 
 The actual pinned Hermes `run_codex_stream` driver, OpenAI SDK, response normalizer and next-turn converter work through the Workbench `/v1/responses` listener for the six tested scenarios. The harness imports the complete pinned modules; it does not extract/reimplement their parser or mock the SDK/socket layer.

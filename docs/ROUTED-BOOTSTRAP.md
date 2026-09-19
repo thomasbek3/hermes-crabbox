@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Routed task bootstrap provisioning
 
 `routed_bootstrap.py` is a root-only filesystem primitive for one admitted child attempt. It has no listener, sudo wrapper, process launcher, provider credentials, or installed privilege service. Root-controlled code supplies the destination, the exact seven-file source manifest, and both authorization callbacks. A request cannot select paths, Unix identities, source bytes, or helper commands.

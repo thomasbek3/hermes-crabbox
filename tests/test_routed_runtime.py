@@ -61,6 +61,9 @@ class Docker:
 
 @pytest.fixture
 def setup(tmp_path,monkeypatch):
+    # Production canonicalizes mounts; match its paths before installing the
+    # metadata-only fixture (macOS /var and /tmp are symlinked aliases).
+    tmp_path = tmp_path.resolve()
     workspace=tmp_path/'workspace';workspace.mkdir()
     scratch=tmp_path/'scratch';scratch.mkdir()
     task=tmp_path/'task';task.mkdir(mode=0o751)
@@ -429,3 +432,19 @@ def test_relay_can_traverse_public_bootstrap_but_not_private_inputs(setup):
     for name in ('prompt.txt','config.yaml','launch.json','http-capability'):
         assert not routed._relay_access(Path(spec.task_dir,name).lstat())
     routed.create_caller(spec)
+
+
+def test_linux_metadata_fixture_supports_symlinked_temp_root(tmp_path, monkeypatch):
+    actual = tmp_path / 'actual'
+    actual.mkdir()
+    alias = tmp_path / 'alias'
+    alias.symlink_to(actual, target_is_directory=True)
+    unrelated = tmp_path / 'unrelated'
+    unrelated.mkdir()
+    original = unrelated.lstat()
+    routed, spec, docker = setup.__wrapped__(alias, monkeypatch)
+    assert Path(spec.worker_socket_dir).parent == actual.resolve()
+    assert Path(spec.worker_socket_dir).lstat().st_gid == 1001
+    assert Path(spec.task_dir).lstat().st_gid == 1000
+    assert unrelated.lstat() == original
+    assert not docker.calls

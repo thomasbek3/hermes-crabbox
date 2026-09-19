@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Routed task-acceptance decision checkpoint
 
 This local controller module supports only the frozen `acceptance_verification` role at step `verify`. It does not implement planning/review contracts, workflow remediation, next-child admission, root completion or final session promotion. No schema changes or live deployment accompany it.

@@ -1,6 +1,11 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Infrastructure reuse assessment — 2026-09-18
 
-Research only, requested after Thomas paused the build. No installations, service changes, migration, provider calls, tests or checkpoint-review runs were performed for this assessment. The build goal stays paused. This document proposes choices; it does not replace the approved specification or authorize cutover.
+Research only, requested after the original operator paused the build. No installations, service changes, migration, provider calls, tests or checkpoint-review runs were performed for this assessment. The build goal stays paused. This document proposes choices; it does not replace the approved specification or authorize cutover.
 
 Recommendation: Coder is the stronger candidate for replacing substantial workspace infrastructure while retaining Hermes. OpenHands Sandbox Server is usable infrastructure, but its complete task/conversation experience assumes the OpenHands SDK. Do not adopt both by default. For only a headless task on one Docker host, the already-working Hermes execution plus a small dispatch/result adapter may remain simpler than introducing either platform.
 
@@ -36,4 +41,4 @@ The preferred proposed topology keeps one fresh Hermes worker and a separate com
 
 Hermes already has an SSH execution backend, making Coder connectivity promising. Current upstream also synchronizes selected credentials, skills and cache and syncs changes back. Consequently SSH alone is not a guarantee of clean tasks or credential exclusion: use a dedicated task home and explicit allowed content, never a personal ~/.hermes. This is a source-level integration lead, not a compatibility claim for our pinned deployed image. Sources: [Hermes SSH backend](https://github.com/NousResearch/hermes-agent/blob/main/tools/environments/ssh.py), [file synchronization](https://github.com/NousResearch/hermes-agent/blob/main/tools/environments/file_sync.py).
 
-Keep custom scope small: submission/status/cancel/result calls for MUSE/Grokbot; task identity and optional continuation; the Hermes process adapter; credential boundaries; artifact publication and cleanup ordering. Prefer upstream workspace management to expanding a second general-purpose control plane. Preserve all current work and existing jobs until Thomas selects a direction and explicitly resumes implementation.
+Keep custom scope small: submission/status/cancel/result calls for MUSE/Grokbot; task identity and optional continuation; the Hermes process adapter; credential boundaries; artifact publication and cleanup ordering. Prefer upstream workspace management to expanding a second general-purpose control plane. Preserve all current work and existing jobs until the original operator selects a direction and explicitly resumes implementation.

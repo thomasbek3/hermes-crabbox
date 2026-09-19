@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Remaining worker integration for routed stages
 
 The driver, provisioning primitive, bounded worker lifecycle and combined cleanup components now exist. They remain an undeployed candidate; a complete production orchestration entry point and protected result path are still required.

@@ -120,6 +120,8 @@ def test_parser_input_total_line_and_count_limits(monkeypatch):
 
 def test_actual_pinned_hermes_emitter_without_auth_or_inference():
     source=Path(__file__).parents[1]/'evidence/hermes-adapter-source-snapshot/audited-hermes/hermes_cli/stream_json.py'
+    if not source.is_file():
+        pytest.skip('Optional pinned Hermes emitter snapshot is not distributed')
     import hashlib
     assert hashlib.sha256(source.read_bytes()).hexdigest()=='e9229445739e6755ee1f088b0f6eb000a9761b47a8a56e932a9922e778c5d31a'
     spec=importlib.util.spec_from_file_location('hermes_audited_emitter',source);module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
@@ -152,6 +154,8 @@ def test_plan_cannot_claim_live_qualified(profile):
 @pytest.mark.parametrize('data,code',[({'failed':True,'error':'raw synthetic error'},0),({},130),({'error':'raw synthetic error'},0)])
 def test_actual_emitter_failure_signals_are_not_success(data,code):
     source=Path(__file__).parents[1]/'evidence/hermes-adapter-source-snapshot/audited-hermes/hermes_cli/stream_json.py'
+    if not source.is_file():
+        pytest.skip('Optional pinned Hermes emitter snapshot is not distributed')
     spec=importlib.util.spec_from_file_location('hermes_audited_failure',source);module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
     output=io.StringIO()
     with contextlib.redirect_stdout(output),contextlib.redirect_stderr(io.StringIO()):

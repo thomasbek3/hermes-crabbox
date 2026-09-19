@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Prepared real-provider qualification harness
 
 Preparation only. No real token was read, no inference called, no service stopped and no production database migrated. `scripts/qualify-real-provider-guarded.py` is a one-request Fable qualification, not the full Pstack workflow. Hermes native tool-loop evidence remains in the separate synthetic harness.

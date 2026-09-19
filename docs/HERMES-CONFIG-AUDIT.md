@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Pinned Hermes source/config audit
 
 Source commit:3b0e392e5a6922034feccac5771041ac78467757 (0.21.3). This is source evidence for an unqualified native launch foundation, not activation proof for the D1 provider-service topology. The clean archive is under work/hermes-pstack-image-context/hermes; source-manifest.json binds it. The final isolated discovery receipt records hashes for172 loaded source files and the harness itself.

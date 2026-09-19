@@ -62,7 +62,7 @@ def test_untrusted_task_controls_refused(tmp_path,change):
 def test_auth_access_only_and_expiry_nofollow(tmp_path):
     path=tmp_path/'auth.json'
     value={'dedicated':{'auth_mode':'oidc','oidc_issuer':'https://auth.x.ai',
-                       'expires_at':(datetime.now(timezone.utc)+timedelta(hours=1)).isoformat(),
+                       'expires_at':(datetime.now(timezone.utc)+timedelta(seconds=job.MIN_AUTH_REMAINING_SECONDS + 600)).isoformat(),
                        'key':'synthetic-access-only','refresh_token':'synthetic-refresh'}}
     path.write_text(json.dumps(value));path.chmod(0o600)
     key,secrets=job.read_auth(path)

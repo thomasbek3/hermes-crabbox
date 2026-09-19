@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Native provider bootstrap integration
 
 The existing provider_main entrypoint now selects a native branch only from a trusted root-owned profile file exactly `{transport: "native-responses-v1", provider, model, effort}`. Historical five-field Claude CLI profiles continue through the existing token/CLI path. Profile identity is NativeProfile.digest; no request-selected provider, endpoint, auth path or CLI command exists.

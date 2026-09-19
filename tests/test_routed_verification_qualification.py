@@ -10,7 +10,7 @@ import pytest
 
 from tests.test_routed_driver_linux_qualification import good_receipt as driver_receipt
 
-PATH = Path(__file__).resolve().parents[1]/'scripts/qualify-routed-verification-linux.py'
+PATH = Path(__file__).resolve().parents[1]/'scripts/legacy/qualify-routed-verification-linux.py'
 spec = importlib.util.spec_from_file_location('verification_qualification', PATH)
 module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
 

@@ -2,14 +2,17 @@ import importlib.util
 from pathlib import Path
 import pytest
 
-PATH=Path(__file__).resolve().parents[1]/'scripts/qualify-supervised-provider-linux.py'
+PATH=Path(__file__).resolve().parents[1]/'scripts/legacy/qualify-supervised-provider-linux.py'
 spec=importlib.util.spec_from_file_location('supervised_qualification',PATH)
 proof=importlib.util.module_from_spec(spec);spec.loader.exec_module(proof)
 
 
 def receipt():
     import json
-    return json.loads((PATH.parents[1]/'evidence/supervised-provider-linux-20260918T010306Z.json').read_text())
+    path = PATH.parents[2]/'evidence/supervised-provider-linux-20260918T010306Z.json'
+    if not path.is_file():
+        pytest.skip('Optional historical provider receipt is not distributed')
+    return json.loads(path.read_text())
 
 
 def test_complete_receipt_accepted():
@@ -31,7 +34,7 @@ def test_partial_or_misleading_receipt_rejected(kind):
 
 
 def test_source_inventory_is_complete_and_snapshottable():
-    root=PATH.parents[1]
+    root=PATH.parents[2]
     for name in proof.MODULES:
         assert (root/'src/cloudworkbench'/name).is_file()
     assert len(proof.MODULES)==len(set(proof.MODULES))
@@ -40,7 +43,9 @@ def test_source_inventory_is_complete_and_snapshottable():
 
 def test_canonical_receipt_snapshot_and_archived_harness_match():
     import json
-    base=PATH.parents[1]/'evidence/supervised-provider-linux-20260918T010306Z'
+    base=PATH.parents[2]/'evidence/supervised-provider-linux-20260918T010306Z'
+    if not base.with_suffix('.source-snapshot.json').is_file():
+        pytest.skip('Optional historical provider archive is not distributed')
     snapshot=json.loads(base.with_suffix('.source-snapshot.json').read_text())
     assert proof.validate_archive(receipt(),snapshot,base.with_suffix('.harness.py').read_bytes())
 
@@ -60,7 +65,7 @@ def test_stronger_proof_invariants_reject_corruption(kind):
 @pytest.mark.parametrize('kind',['receipt_hash','source_byte','harness_byte','schema2_echo'])
 def test_archive_binding_rejects_drift(kind):
     import json
-    base=PATH.parents[1]/'evidence/supervised-provider-linux-20260918T010306Z'
+    base=PATH.parents[2]/'evidence/supervised-provider-linux-20260918T010306Z'
     value=receipt();snapshot=json.loads(base.with_suffix('.source-snapshot.json').read_text());harness=base.with_suffix('.harness.py').read_bytes()
     if kind=='receipt_hash':value['source_hashes']['store.py']='0'*64
     if kind=='source_byte':snapshot['sources']['store.py']+=' '

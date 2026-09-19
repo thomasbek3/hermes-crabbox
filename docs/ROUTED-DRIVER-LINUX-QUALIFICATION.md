@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Routed-driver Linux qualification
 
 ## Executed checkpoint
@@ -50,7 +55,7 @@ worker socket GID1001 material, plus the setgid GID1000 stage parent. Actual ser
 worker959 currently lacks those groups. Successful execution therefore does not
 qualify ordinary service-worker provisioning, change groups, or grant root access.
 
-Remote target is only thomas@100.83.74.92 with hostname omarchy and root supervisor.
+Remote target is only operator@worker.example.ts.net with hostname omarchy and root supervisor.
 Each invocation uses a fresh private cwb2-driverqual-* directory and owner label.
 It requires 6GiB available memory and 5GiB Docker free disk, verifies the existing
 image ID, and refuses an existing owner namespace. One caller uses 1.4CPUs,

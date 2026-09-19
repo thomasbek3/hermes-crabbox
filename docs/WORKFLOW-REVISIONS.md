@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Routed workspace revision primitive
 
 `cloudworkbench.workflow_revisions` captures selected deliverables from a quiesced routed workspace into controller-owned, hash-bound storage and creates isolated stage copies. It uses the existing Store session/attempt identities. It adds no database, scheduler, lifecycle state, canonical-session pointer, or delivery-success decision. Existing direct Claude work/native layouts and Runtime launch behavior are unchanged.

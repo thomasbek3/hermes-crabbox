@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # D9 concrete Docker adapter checkpoint
 
 `ProviderDocker` is controller-only and implements the existing `ProviderDispatch` runtime callbacks and `ProviderLeases` cleanup verifier. It does not activate the worker, register accounts, select a user account, read provider credentials, start an HTTP listener or migrate a database. The owning dispatcher must hold its account flock around callbacks; calling these internal methods is not public authentication. Real provider/auth qualification remains separate.

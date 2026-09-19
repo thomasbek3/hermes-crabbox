@@ -3,7 +3,7 @@ import importlib.util
 from pathlib import Path
 
 
-SCRIPT=Path(__file__).resolve().parents[1]/'scripts/activate-crabbox-pstack.py'
+SCRIPT=Path(__file__).resolve().parents[1]/'scripts/legacy/activate-crabbox-pstack.py'
 spec=importlib.util.spec_from_file_location('pstack_activation',SCRIPT)
 activation=importlib.util.module_from_spec(spec)
 spec.loader.exec_module(activation)

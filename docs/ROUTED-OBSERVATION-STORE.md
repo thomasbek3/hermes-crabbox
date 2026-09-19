@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Durable routed worker observations
 
 The controller now persists the exact validated worker result and event bytes before fencing and removing the caller. This closes the in-memory-only observation gap: the scratch files belong to the tool UID, and a controller cannot rely on reading those files directly after the container is gone.

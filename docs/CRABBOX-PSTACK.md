@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Agent-invoked Jev/pstack on Omarchy
 
 Status: opt-in environment installed. Live Hermes -> Jev routing succeeded, selecting feature with confidence1.0 (Jev1.13.0). Fable planning returned HTTP429: account rate limit exceeded. The task stopped with exit1; no fallback, second provider attempt, or successful full workflow is claimed. New caller default is the single-model `hermes-tasks-desktop-soul-v1`; routing remains opt-in.

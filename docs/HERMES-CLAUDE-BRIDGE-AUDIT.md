@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Hermes / Claude CLI bridge: read-only source audit
 
 Audited2026-09-17. No install, build, model request, auth read/change, credential copy, service mutation or remote deployment occurred. Downloaded source was inspected as data only. Exact file hashes are in `evidence/hermes-bridge-source-audit/binding.json`.
@@ -33,7 +38,7 @@ The [provider plugin66820a9d](https://github.com/niski84/hermes-claude-cli/blob/
 
 Current [official legal/compliance documentation](https://code.claude.com/docs/en/legal-and-compliance) distinguishes an end user signing into an unmodified hosted Claude Code binary with their own subscription from third-party applications routing subscription credentials or handling login themselves. It also describes conditions for hosting Claude Code and preserves applicable agreements. That distinction matters here; neither a blanket ban on all personal CLI orchestration nor a blanket approval of every bridge follows from it. Preserve the actual Anthropic sign-in flow and unmodified binary. The repository's promised allowance/billing behavior is not authoritative evidence.
 
-The intended path uses Thomas's existing subscription, not a silently substituted API key. Even correctly selected OAuth authentication does not establish remaining plan allowance or account extra-usage settings. The first actual qualification must identify the selected auth method without printing secrets and preserve an unknown billing status unless authoritative account evidence resolves it. No provider call or spending occurred in this audit.
+The intended path uses the operator's existing subscription, not a silently substituted API key. Even correctly selected OAuth authentication does not establish remaining plan allowance or account extra-usage settings. The first actual qualification must identify the selected auth method without printing secrets and preserve an unknown billing status unless authoritative account evidence resolves it. No provider call or spending occurred in this audit.
 
 ## Smallest useful next qualification
 

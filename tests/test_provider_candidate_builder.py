@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def script(name):
-    spec = importlib.util.spec_from_file_location(name.replace('-', '_'), ROOT / 'scripts' / name)
+    spec = importlib.util.spec_from_file_location(name.replace('-', '_'), ROOT / ('scripts/legacy' if name == 'build-provider-candidate.py' else 'scripts') / name)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -27,7 +27,7 @@ def candidate(tmp_path, monkeypatch):
     def check(argv, **kwargs):
         calls.append(argv)
         if argv[-1] == 'hostname':
-            return 'omarchy\n'
+            return 'archived-worker.invalid\n'
         if '--format' in argv[-1]:
             return builder.BASE
         meta = {'RootFS': {'Layers': ['base']}, 'Id': 'sha256:candidate',

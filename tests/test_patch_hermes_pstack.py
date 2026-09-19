@@ -70,7 +70,10 @@ def test_refuses_symlink(source, tmp_path):
 
 
 def test_actual_pinned_emitter_contract(monkeypatch):
-    source = Path(__file__).parents[2] / 'work/hermes-pstack-image-context/hermes/hermes_cli/stream_json.py'
+    import os
+    if not os.environ.get('CWB_HERMES_SOURCE'):
+        pytest.skip('Set CWB_HERMES_SOURCE for the optional pinned emitter integration')
+    source = Path(os.environ['CWB_HERMES_SOURCE']) / 'hermes_cli/stream_json.py'
     if not source.is_file():
         pytest.skip('pinned Hermes build source is not present')
     data = source.read_bytes()

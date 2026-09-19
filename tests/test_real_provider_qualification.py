@@ -4,13 +4,13 @@ from pathlib import Path
 from types import SimpleNamespace
 import pytest
 
-path=Path(__file__).resolve().parents[1]/'scripts/qualify-real-provider-guarded.py'
+path=Path(__file__).resolve().parents[1]/'scripts/legacy/qualify-real-provider-guarded.py'
 spec=importlib.util.spec_from_file_location('real_provider_qualification',path)
 module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
 
 
 def manifest():
-    return {'version':1,'host':'omarchy','authorization':{'scope':'single_real_provider_canary','reference':'explicit-synthetic-test-approval',
+    return {'version':1,'host':'archived-worker.invalid','authorization':{'scope':'single_real_provider_canary','reference':'explicit-synthetic-test-approval',
         'expires_at':2000,'quiescence_window':True,'other_credential_consumers_fenced':True},
         'worker_config_sha256':'a'*64,'state_root':'/var/lib/cloud-workbench/worker','database':'/var/lib/cloud-workbench/control/state.db',
         'lock_device':32,'lock_inode':1234,'worker_uid':959,'worker_gid':960,'provider_image':'sha256:'+'a'*64,
@@ -67,7 +67,7 @@ class Guard:
 
 def prepared_main(monkeypatch):
     value=manifest();Guard.instances=[]
-    monkeypatch.setattr(module.socket,'gethostname',lambda:'omarchy');monkeypatch.setattr(module.os,'geteuid',lambda:0)
+    monkeypatch.setattr(module.socket,'gethostname',lambda:'archived-worker.invalid');monkeypatch.setattr(module.os,'geteuid',lambda:0)
     monkeypatch.setattr(module.time,'time',lambda:1000)
     monkeypatch.setattr(module,'trusted_json',lambda p:({'claude_token':str(module.CANONICAL_TOKEN)},'hash') if p==module.WORKER_CONFIG else ({'credential_identity':{}},'hash') if p==value['billing_evidence_path'] else (value,'hash'))
     monkeypatch.setattr(module,'validate_sources',lambda _:None);monkeypatch.setattr(module,'load_profile',lambda _:object())

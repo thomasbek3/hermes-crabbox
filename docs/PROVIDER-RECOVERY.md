@@ -1,3 +1,8 @@
+> Engineering reference from the initial implementation. For current setup, use
+> [Agent setup](AGENT-SETUP.md) and [Host installation](HOST-INSTALL.md). Historical
+> scripts and machine/image receipts are not fresh-install instructions or proof
+> that a new deployment has passed these checks.
+
 # Recovery of interrupted provider requests
 
 `provider_recovery.recover_request` is a trusted controller operation. Supply the existing ProviderDispatch, exact request ID, reservation, grant ID and immutable AttemptBinding. It does not discover requests from user input, issue new grants, release the logical account owner, or start a provider.
