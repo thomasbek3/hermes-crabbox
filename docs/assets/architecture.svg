@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 1010" role="img" aria-labelledby="diagram-title diagram-desc">
+<title id="diagram-title">Delegate a task. Run it on your own computer.</title>
+<desc id="diagram-desc">A parent agent sends assignments through MCP or HTTP over Tailscale. Your computer queues tasks and starts separate Crabbox containers. Each container runs Hermes with its own code workspace, browser and desktop. Optional Jev and pstack routing happens inside a running worker. Results return to the parent agent.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 1 1 L 8 5 L 1 9" fill="none" stroke="#7de0c3" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+<rect width="880" height="1010" rx="24" fill="#0b1017"/>
+<g font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif">
+<g id="parent"><title>Your parent agent delegates assignments</title>
+<rect x="40" y="28" width="800" height="166" rx="20" fill="#121b25" stroke="#344557"/>
+<circle cx="82" cy="70" r="7" fill="#7de0c3"/>
+<text x="103" y="78" fill="#a2b2c4" font-size="21" font-weight="600" letter-spacing="2">YOUR MAIN AGENT</text>
+<text x="75" y="124" fill="#f0f5fc" font-size="33" font-weight="650">Give it the assignment.</text>
+<text x="75" y="165" fill="#b8c8d9" font-size="23">Grokbot · Hermes · Codex · Claude · others</text>
+</g>
+<g id="private-connection"><title>Private connection over Tailscale using MCP or HTTP</title>
+<path d="M440 195V271" stroke="#7de0c3" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="484" y="214" width="317" height="42" rx="21" fill="#132d2b"/>
+<text x="506" y="242" fill="#9ce8d4" font-size="20">MCP / HTTP · Tailscale</text>
+</g>
+<g id="execution-host"><title>Your own execution host contains separate task environments</title>
+<rect x="40" y="286" width="800" height="528" rx="24" fill="#101923" stroke="#426c64" stroke-width="1.5"/>
+<rect x="72" y="320" width="35" height="26" rx="4" fill="none" stroke="#7de0c3" stroke-width="2"/>
+<path d="M89 346v8m-12 0h25" stroke="#7de0c3" stroke-width="2" stroke-linecap="round"/>
+<text x="125" y="345" fill="#eaf5f1" font-size="27" font-weight="650">Your computer</text>
+<text x="75" y="385" fill="#a2b2c4" font-size="21">A spare machine, or one with capacity to share.</text>
+<g id="queue"><title>The host task service queues work and admits it based on capacity</title>
+<rect x="74" y="409" width="732" height="55" rx="10" fill="#1b2d37"/>
+<text x="99" y="444" fill="#d5e4ef" font-size="23">Task queue</text>
+<text x="779" y="444" text-anchor="end" fill="#a2b2c4" font-size="19">Start a box when resources are available</text>
+</g>
+<path d="M440 465v18M255 483h370M255 483v24M625 483v24" fill="none" stroke="#62887e" stroke-width="2"/>
+<g id="task-one"><title>Task 01 runs Hermes in a dedicated Crabbox container</title>
+<rect x="74" y="510" width="352" height="174" rx="15" fill="#142923" stroke="#72c5aa" stroke-width="1.5"/>
+<text x="99" y="544" fill="#92d8bd" font-size="18" letter-spacing="1.5">CRABBOX · TASK 01</text>
+<text x="99" y="590" fill="#ecfff5" font-size="34" font-weight="650">Hermes worker</text>
+<path d="M99 611h299" stroke="#385e50"/>
+<text x="99" y="642" fill="#c3e4d6" font-size="20">Code · browser · desktop</text>
+<text x="99" y="668" fill="#92b9a8" font-size="18">Its own workspace</text>
+</g>
+<g id="task-two"><title>Task 02 runs a separate Hermes worker and workspace</title>
+<rect x="454" y="510" width="352" height="174" rx="15" fill="#172637" stroke="#7499be" stroke-width="1.5"/>
+<text x="479" y="544" fill="#a6c6e8" font-size="18" letter-spacing="1.5">CRABBOX · TASK 02</text>
+<text x="479" y="590" fill="#eef6ff" font-size="34" font-weight="650">Hermes worker</text>
+<path d="M479 611h299" stroke="#354d64"/>
+<text x="479" y="642" fill="#c8d9ed" font-size="20">Code · browser · desktop</text>
+<text x="479" y="668" fill="#9ab1ca" font-size="18">Its own workspace</text>
+</g>
+<text x="440" y="720" text-anchor="middle" fill="#a2b2c4" font-size="20">More tasks → more independent boxes, subject to capacity.</text>
+<g id="optional-routing"><title>Optional Jev and pstack tools operate after Hermes starts, inside the worker</title>
+<rect x="74" y="742" width="732" height="45" rx="10" fill="#272238"/>
+<text x="95" y="772" fill="#c7b8ef" font-size="20">Inside a worker, optionally: Jev → pstack workflows + fixed roles</text>
+</g>
+</g>
+<g id="result-handoff"><title>Code, status, screenshots and recordings return to the calling agent</title>
+<path d="M440 815v50" stroke="#7de0c3" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="40" y="882" width="800" height="101" rx="18" fill="#142421" stroke="#3f6c5f"/>
+<text x="74" y="919" fill="#91c9b6" font-size="18" font-weight="600" letter-spacing="1.8">BACK TO YOUR MAIN AGENT</text>
+<text x="74" y="959" fill="#e4f8ef" font-size="28" font-weight="600">Code changes · status · screenshots · recordings</text>
+</g>
+</g></svg>

@@ -15,7 +15,11 @@
 </p>
 
 <p align="center">
-  <a href="docs/QUICKSTART.md"><strong>Get started</strong></a> ·
+  <a href="docs/QUICKSTART.md"><img src="https://img.shields.io/badge/Connect%20an%20agent-7de0c3?style=for-the-badge&labelColor=121b25" alt="Connect an agent"></a>
+  <a href="BUILDING.md#set-up-a-worker-computer"><img src="https://img.shields.io/badge/Set%20up%20a%20worker%20computer-a2b2c4?style=for-the-badge&labelColor=121b25" alt="Set up a worker computer"></a>
+</p>
+
+<p align="center">
   <a href="docs/README.md">Documentation</a> ·
   <a href="https://github.com/thomasbek3/hermes-crabbox/releases/tag/v0.1.0-preview.1">Downloads</a> ·
   <a href="docs/ARCHITECTURE.md">How it works</a> ·
@@ -53,6 +57,26 @@ support; this is not a claim that every named client has been tested.
 | A task, source snapshot, and acceptance criteria | A queued Hermes worker in a separate task container | Status, events, and result files |
 | A browser or UI assignment | Chromium, desktop access, and evidence skills | Screenshots and recordings for review |
 | A follow-up on an existing task | The saved workspace and native session | Continued work without starting from scratch |
+
+<details>
+<summary><strong>See real browser evidence from a worker task</strong></summary>
+
+<p align="center">
+  <img src="docs/assets/browser-evidence.png" width="640" alt="Worker-captured browser screenshot of the synthetic Counter Demo after clicking Increase, showing a count of 1.">
+</p>
+
+An actual screenshot from the synthetic Counter Demo task, captured after
+clicking **Increase**. This is an example of the evidence a worker returns for
+review. [Screenshots, recordings, and PR evidence →](docs/PR-EVIDENCE.md)
+
+</details>
+
+## Choose your setup path
+
+| What you want to do | Start here |
+| --- | --- |
+| Give tasks to an existing worker computer | [Connect an agent](docs/QUICKSTART.md) — requires network access and a caller credential. |
+| Run workers on your own spare computer | [Set up a worker computer](BUILDING.md#set-up-a-worker-computer) — manual host provisioning; no one-click server installer yet. |
 
 ## Connect your agent
 
@@ -111,16 +135,9 @@ After connecting, ask your agent:
 
 ## How it works
 
-```mermaid
-flowchart TB
-    P["Parent agent<br/>Grokbot · Hermes · Codex · Claude"] -->|"MCP or HTTP · Tailscale"| A["Task API + queue"]
-    A --> H
-    subgraph C["Crabbox task container · one workspace"]
-        H["Hermes worker"] --> B["Code · Chromium · desktop"]
-        H -. "optional" .-> J["Jev → pstack roles"]
-    end
-    C -->|"Status · code · screenshots · video"| P
-```
+<p align="center">
+  <img src="docs/assets/architecture.svg" width="880" alt="Your main agent delegates over MCP or HTTP through Tailscale. Your computer queues tasks and starts a separate Crabbox container for each task. Each container runs Hermes with its own workspace, browser and desktop. Optional Jev and pstack routing happens inside the running worker. Results return to your main agent.">
+</p>
 
 Hermes starts **inside the task container first**. In the optional pstack profile,
 that running agent can ask Jev to choose an allowed workflow and invoke roles

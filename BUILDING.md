@@ -4,6 +4,23 @@ The repository includes project source and recipes. It excludes machine state,
 credentials, third-party source archives, and built images. Existing worker
 images on Omarchy are deployment artifacts, not files stored in GitHub.
 
+## Set up a worker computer
+
+This is the operator path for hosting workers on your own machine. If a worker
+host is already available, use [Connect an agent](docs/QUICKSTART.md) instead.
+
+Fresh-host setup is currently manual. The deployment recipes target the
+configured Linux/Omarchy host; they are not a cross-platform installer.
+
+1. Check the [hardware and resource limits](docs/STATUS.md#resources).
+2. Prepare the pinned sources and image layers described below.
+3. Provision the task service, runtime configuration, and provider credentials
+   using the [architecture guide](docs/ARCHITECTURE.md) and referenced deployment docs.
+4. Configure private Tailscale access and the
+   [MCP service and caller credentials](integrations/omarchy-mcp/README.md).
+5. [Connect your calling agent](docs/QUICKSTART.md). Add
+   [desktop viewing](docs/DESKTOP.md) if you need to watch tasks.
+
 ## Pinned upstream source
 
 | Component | Repository | Revision |
