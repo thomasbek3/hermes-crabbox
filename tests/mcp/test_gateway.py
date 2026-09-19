@@ -7,6 +7,8 @@ import io
 import json
 from pathlib import Path
 import sys
+import shutil
+import runpy
 import zipfile
 
 import httpx
@@ -33,7 +35,11 @@ def setup(tmp_path):
         'artifact_root':artifacts,'input_root':tmp_path/'inputs','sse_poll_seconds':0.001}
     api = create_app(store,settings)
     backend = gateway.Backend(httpx.ASGITransport(app=api))
-    mcp,app = gateway.create_server(backend, settings=SETTINGS)
+    package_dir=tmp_path/'package'
+    shutil.copytree(ROOT/'integrations/omarchy-mcp/skill',package_dir/'skill',ignore=shutil.ignore_patterns('__pycache__'))
+    shutil.copyfile(ROOT/'integrations/omarchy-mcp/build_package.py',package_dir/'build_package.py')
+    runpy.run_path(str(package_dir/'build_package.py'),run_name='__main__')
+    mcp,app = gateway.create_server(backend, package_dir=package_dir, settings=SETTINGS)
     return store, owner, artifacts, backend, app
 
 
