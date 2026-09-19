@@ -1,0 +1,28 @@
+name: Bug report
+description: Report a reproducible problem with delegation, workers, or tooling.
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: "Use synthetic examples. Never include credentials, raw auth headers, or private task data. See SECURITY.md for sensitive findings."
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior
+      description: What did you expect, and what happened?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Include the smallest safe example and relevant sanitized errors.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Commit/release, caller, operating system, and MCP or HTTP path. Do not include tokens.
+    validations:
+      required: true

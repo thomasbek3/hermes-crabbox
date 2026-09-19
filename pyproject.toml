@@ -5,8 +5,16 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "cloudworkbench"
 version = "0.1.0"
+description = "Self-hosted Hermes workers in Crabbox containers with private MCP and HTTP delegation"
+readme = "README.md"
+license = {file = "LICENSE"}
 requires-python = ">=3.11"
 dependencies = ["fastapi>=0.115,<1", "uvicorn>=0.30,<1", "pydantic>=2.9,<3"]
+
+[project.urls]
+Repository = "https://github.com/thomasbek3/hermes-crabbox"
+Documentation = "https://github.com/thomasbek3/hermes-crabbox/blob/main/docs/README.md"
+Issues = "https://github.com/thomasbek3/hermes-crabbox/issues"
 
 [project.optional-dependencies]
 test = ["pytest>=8,<10", "httpx>=0.27,<1"]

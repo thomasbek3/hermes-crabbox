@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="340" viewBox="0 0 1280 340" role="img" aria-labelledby="title desc">
+<title id="title">Hermes Crabbox</title><desc id="desc">Hermes workers on your infrastructure. Dedicated workspaces, browser and desktop, private delegation.</desc>
+<rect width="1280" height="340" rx="20" fill="#0b1017"/>
+<rect x="1" y="1" width="1278" height="338" rx="19" fill="none" stroke="#273342"/>
+<g font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif">
+<text x="58" y="66" fill="#7de0c3" font-size="14" font-weight="600" letter-spacing="3">SELF-HOSTED AGENT WORKSPACES</text>
+<text x="54" y="146" fill="#e9f0f8" font-size="68" font-weight="700" letter-spacing="-2">Hermes Crabbox</text>
+<text x="58" y="197" fill="#a2b2c4" font-size="26">Hermes workers. Your infrastructure.</text>
+<path d="M58 232h655" stroke="#273342"/>
+<text x="58" y="278" fill="#e9f0f8" font-size="17">Dedicated workspaces</text><circle cx="280" cy="272" r="3" fill="#7de0c3"/>
+<text x="304" y="278" fill="#e9f0f8" font-size="17">Browser + desktop</text><circle cx="501" cy="272" r="3" fill="#7de0c3"/>
+<text x="524" y="278" fill="#e9f0f8" font-size="17">Private delegation</text>
+<rect x="887" y="55" width="295" height="208" rx="16" fill="#121b25" stroke="#273342"/>
+<rect x="862" y="80" width="295" height="208" rx="16" fill="#14252b" stroke="#3c7369"/>
+<rect x="837" y="105" width="295" height="208" rx="16" fill="#121b25" stroke="#7de0c3"/>
+<circle cx="863" cy="132" r="4" fill="#7de0c3"/><circle cx="878" cy="132" r="4" fill="#405165"/><circle cx="893" cy="132" r="4" fill="#405165"/>
+<path d="M838 151h293" stroke="#273342"/>
+<text x="862" y="192" fill="#7de0c3" font-size="15" font-family="monospace">worker / workspace</text>
+<text x="862" y="235" fill="#e9f0f8" font-size="24" font-weight="600">Ready for the task.</text>
+<path d="M863 264h162M863 280h112" stroke="#405165" stroke-width="5" stroke-linecap="round"/>
+</g></svg>

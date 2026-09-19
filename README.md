@@ -1,98 +1,212 @@
-# Hermes Crabbox
+<p align="center">
+  <img src="docs/assets/hero.svg" alt="Hermes Crabbox — Hermes workers on your infrastructure" width="100%">
+</p>
 
-Self-hosted Hermes coding workers in Crabbox containers, with a private HTTP API,
-MCP server, desktop viewer, and skills for delegating agents.
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-7de0c3?style=flat-square&labelColor=121b25" alt="Original code: MIT license"></a>
+  <a href="docs/QUICKSTART.md"><img src="https://img.shields.io/badge/interface-MCP%20%2B%20HTTP-7de0c3?style=flat-square&labelColor=121b25" alt="MCP and HTTP interfaces"></a>
+  <a href="docs/STATUS.md"><img src="https://img.shields.io/badge/status-preview-e3bf7a?style=flat-square&labelColor=121b25" alt="Preview status"></a>
+  <a href="BUILDING.md"><img src="https://img.shields.io/badge/Python-3.11%2B-a2b2c4?style=flat-square&labelColor=121b25" alt="Server requires Python 3.11 or later"></a>
+</p>
 
-**Independent integration maintained for Thomas Bekkers.** This is not an
-official Crabbox, OpenClaw, Nous Research, Cursor, or Vercel release. The name
-describes the two upstream components it integrates; it does not claim ownership
-of them or endorsement by their maintainers.
+<p align="center">
+  <strong>Delegate coding work. Give every task its own workspace, browser, and desktop.</strong><br>
+  Self-hosted Hermes agents, powered by Crabbox, accessible over your private Tailscale network.
+</p>
+
+<p align="center">
+  <a href="docs/QUICKSTART.md"><strong>Get started</strong></a> ·
+  <a href="docs/README.md">Documentation</a> ·
+  <a href="https://github.com/thomasbek3/hermes-crabbox/releases/tag/v0.1.0-preview.1">Downloads</a> ·
+  <a href="docs/ARCHITECTURE.md">How it works</a> ·
+  <a href="THIRD_PARTY_NOTICES.md">Credits</a>
+</p>
+
+---
+
+## Cloud-agent workflow. Your own computer.
+
+An alternative for people who want the delegated coding workflow of **Devin or
+Cursor Cloud Agents**, using hardware they already own. Run independent container
+dev boxes on a spare computer—or a machine with enough available RAM—while your
+main agent hands off tasks and collects the results.
+
+The worker environments run on your hardware. The configured LLMs can still use
+external model APIs or subscriptions; this does not make inference offline or
+remove provider costs. The aim is a similar delegation workflow, not feature
+parity with those services. [Hardware and current limits](docs/STATUS.md#resources).
 
 ## What it does
 
-A parent agent such as Muse, Grokbot, or another Hermes submits an assignment
-over the private API or MCP. The Omarchy host queues it, creates a Crabbox
-container, and starts Hermes inside that container. Hermes has a workspace,
-Chromium, and an XFCE desktop. The parent retrieves status, results, and evidence.
-It can send a follow-up or cancel the task. Containers are released after the
-attempt; saved workspace/session state supports later follow-ups.
+**Parent agents such as Grokbot, Hermes, Codex, Claude, or any agent that supports
+MCP or HTTP can delegate coding tasks to Hermes Crabbox.** The parent submits an
+assignment; a Hermes worker runs it in a dedicated Crabbox container with its
+own workspace, Chromium browser, and optional graphical desktop.
 
-The optional pstack profile starts Hermes first. That running agent can ask Jev
-to select an allowed workflow and invoke roles with the predefined model policy.
-Jev does not choose arbitrary models or run before the worker exists.
+Check progress, retrieve code and screenshots, send follow-ups, and prepare a PR
+from the calling agent. Tasks keep running independently of the parent's
+connection. Compatibility depends on the caller's network and authentication
+support; this is not a claim that every named client has been tested.
 
-## Start here
+| You provide | Hermes Crabbox provides | You get back |
+| --- | --- | --- |
+| A task, source snapshot, and acceptance criteria | A queued Hermes worker in a separate task container | Status, events, and result files |
+| A browser or UI assignment | Chromium, desktop access, and evidence skills | Screenshots and recordings for review |
+| A follow-up on an existing task | The saved workspace and native session | Continued work without starting from scratch |
 
-- **Connect another agent:** [MCP/API onboarding](integrations/omarchy-mcp/README.md).
-- **Portable caller skill:** [omarchy-cloud-delegate](integrations/omarchy-mcp/skill/SKILL.md).
-- **Worker identity and PR rules:** [SOUL.md](integrations/hermes-pr-evidence/SOUL.md).
-- **Screenshots, recordings, and PR handoff:** [PR evidence](docs/PR-EVIDENCE.md).
-- **Optional in-agent routing:** [Jev and pstack](docs/CRABBOX-PSTACK.md).
-- **Upstream ownership and licenses:** [third-party notices](THIRD_PARTY_NOTICES.md).
+## Connect your agent
 
-The configured deployment is the separate Omarchy Intel MacBook Pro. Caller
-hosts need Tailscale connectivity and their own service-issued credential.
-Cloning this private repository does not grant access to the running service,
-provider accounts, or another caller's tasks. Muse/Grokbot cloud hosts still
-need individual onboarding. GitHub authorization is separate from Tailscale.
+<p>
+  <a href="https://cursor.com/link/mcp/install?name=hermes-crabbox&config=eyJ1cmwiOiJodHRwczovL29tYXJjaHkudGFpbDBkNWViNi50cy5uZXQvbWNwIiwiaGVhZGVycyI6eyJBdXRob3JpemF0aW9uIjoiQmVhcmVyICR7ZW52Ok9NQVJDSFlfQ0xPVURfVE9LRU59In19"><img src="https://img.shields.io/badge/Add%20to%20Cursor-Configure%20MCP-7de0c3?style=for-the-badge&labelColor=121b25" alt="Add Hermes Crabbox MCP to Cursor"></a>
+  <a href="https://github.com/thomasbek3/hermes-crabbox/releases/download/v0.1.0-preview.1/omarchy-cloud-delegate.zip"><img src="https://img.shields.io/badge/Download-Agent%20skill-a2b2c4?style=for-the-badge&labelColor=121b25" alt="Download portable delegation skill"></a>
+</p>
 
-## Repository contents
+> **Before connecting:** the machine running the agent's tools needs Tailscale
+> access to the configured Omarchy host and a dedicated service credential.
+> The Cursor button adds the server configuration; it does not create access.
+> Downloads require permission to this private GitHub repo. No token is embedded
+> in a button, example, or skill bundle.
 
-| Path | Contents |
-| --- | --- |
-| `src/cloudworkbench/` | Task API, scheduler, persistence, runtime adapters, result handling, routing |
-| `integrations/omarchy-mcp/` | Authenticated MCP server, dependency lock, skill packager, portable caller |
-| `integrations/omarchy-cloud/` | HTTP client, desktop viewer helper, credential refresh integration |
-| `integrations/hermes-cloud-pstack/` | Hermes tools for agent-invoked workflow routing and roles |
-| `integrations/hermes-pr-evidence/` | Worker SOUL, evidence skills, attributed upstream browser skill |
-| `deploy/` | Container recipes, service units, browser launch wrapper |
-| `patches/`, `plugins/` | Hermes compatibility patch and role plugin |
-| `scripts/`, `tests/` | Operator tooling, qualification helpers, automated tests |
-| `docs/` | Current guides plus historical architecture and deployment records |
-| `LICENSES/` | Unmodified upstream notices and provenance manifests |
+### Codex: one command to register MCP
 
-Internal package, CLI, and service names still use `cloudworkbench` /
-`cloud-workbench`; the GitHub name does not change deployed paths or services.
-Earlier runtime/controller implementations remain in source. Historical specs
-and checkpoint documents are not promises that every described path is enabled.
-Start with the linked current guides above.
+Make `OMARCHY_CLOUD_TOKEN` available to the Codex process through your secret
+manager, then run:
 
-## Development and packaging
+```sh
+codex mcp add hermes-crabbox \
+  --url https://omarchy.tail0d5eb6.ts.net/mcp \
+  --bearer-token-env-var OMARCHY_CLOUD_TOKEN
+```
 
-Python 3.11+ is required for the control service. Use separate environments for
-the API and the MCP server, matching the deployment guides:
+### Hermes: install the delegation skill
+
+From an authenticated clone of this repository:
+
+```sh
+gh repo clone thomasbek3/hermes-crabbox
+cd hermes-crabbox
+python3 scripts/install-delegation-skill.py --agent hermes
+```
+
+The installer copies the skill and HTTP caller to `~/.hermes/skills/`, preserves
+existing modified installations, and does not touch credentials or start a job.
+Use `--agent codex` for `~/.agents/skills/`, or `--skills-dir PATH` for a custom
+agent/profile skills directory.
+
+**Other agents:** use the [MCP connection guide](docs/QUICKSTART.md#other-mcp-clients)
+or the included [Python HTTP client](docs/QUICKSTART.md#use-http-instead).
+Cursor users can use the [manual JSON configuration](examples/cursor.mcp.json)
+if the install link is unavailable.
+
+### Give it a first assignment
+
+After connecting, ask your agent:
+
+> Read `get_delegation_guide`. Delegate the task in `examples/task.md` to a Hermes
+> worker, supplying the specified repository snapshot. Save the task ID, check
+> progress when I ask, and return the resulting changes and evidence. Do not
+> merge or deploy.
+
+[Write a useful assignment →](examples/task.md)
+
+## How it works
+
+```mermaid
+flowchart LR
+    P["Parent agent<br/>Grokbot · Hermes · Codex · Claude"] -->|"MCP or HTTP · Tailscale"| A["Task API + queue"]
+    A --> H
+    subgraph C["Crabbox task container · one workspace"]
+        H["Hermes worker"] --> B["Code · Chromium · desktop"]
+        H -. "optional" .-> J["Jev → pstack roles"]
+    end
+    C -->|"Status · code · screenshots · video"| P
+```
+
+Hermes starts **inside the task container first**. In the optional pstack profile,
+that running agent can ask Jev to choose an allowed workflow and invoke roles
+with predefined models. Temporary role sessions share the task's workspace;
+they are not new containers for every role.
+
+[Architecture and lifecycle →](docs/ARCHITECTURE.md)
+
+## Built for delegated work
+
+- **One task, one environment.** Separate containers and workspaces, with queueing
+  and resource admission on the execution host.
+- **Browser and desktop included.** Chromium for web work; XFCE/VNC for tasks
+  you want to watch. [Desktop guide](docs/DESKTOP.md).
+- **Evidence with the result.** Skills for screenshots and recordings, plus a
+  parent-side PR evidence publisher. [Evidence guide](docs/PR-EVIDENCE.md).
+- **Persistent worker instructions.** Every supported worker profile loads the
+  cloud-worker [SOUL.md](integrations/hermes-pr-evidence/SOUL.md), including repository
+  contribution rules and honest completion reporting.
+- **Optional model routing.** Jev selects a workflow; pstack policy fixes the
+  model and effort for each role. [Routing guide](docs/CRABBOX-PSTACK.md).
+- **Private access.** Tailscale connectivity, caller-scoped credentials, and
+  owner-isolated tasks. [Access and security](SECURITY.md).
+
+## Project status
+
+**Preview, running on the configured Omarchy host.** This repository packages
+that integration and its operator tooling. It is not yet a turnkey installer
+for a new server. Provider credentials, Tailscale, runtime images, and host
+configuration are provisioned separately.
+
+The basic worker, desktop viewing, evidence capture, and MCP have recorded
+checks. The full optional multi-model workflow remains partially qualified;
+see [status and known limits](docs/STATUS.md). The current ceiling is eight
+concurrent tasks, subject to resource admission—not an eight-task load-test claim.
+
+PR publishing uses the parent agent's authorized GitHub access. Workers do not
+receive its GitHub credentials. Public release of the repository and automatic
+onboarding of remote agents have not been enabled.
+
+## Develop and contribute
 
 ```sh
 python3 -m venv .venv
 .venv/bin/pip install -e '.[test]'
-
-python3 -m venv .venv-mcp
-.venv-mcp/bin/pip install -r integrations/omarchy-mcp/requirements.lock
-python3 integrations/omarchy-mcp/build_package.py
 ```
 
-The last command generates the distributable caller skill ZIP. It contains
-instructions and client code, not credentials.
+Start with [building and deployment](BUILDING.md), [contributing](CONTRIBUTING.md),
+and the [documentation index](docs/README.md). Operator scripts can change a live
+host; read their documented scope before running them.
 
-This is a source repository for the existing deployment, not a turnkey fresh-host
-installer. Docker recipes depend on prepared base images and pinned upstream
-source contexts. Several operator scripts intentionally contain Omarchy-specific
-paths, checks, or image IDs. Read them before running; do not run all scripts as
-a setup sequence. [BUILDING.md](BUILDING.md) records the source pins and boundaries.
+<details>
+<summary><strong>Repository map</strong></summary>
 
-## Publication scope and status
+| Path | Purpose |
+| --- | --- |
+| [`src/cloudworkbench/`](src/cloudworkbench/) | API, scheduler, persistence, runtime, results, and routing |
+| [`integrations/omarchy-mcp/`](integrations/omarchy-mcp/) | MCP server, caller skill, and package builder |
+| [`integrations/omarchy-cloud/`](integrations/omarchy-cloud/) | HTTP client, desktop helper, and credential refresh |
+| [`integrations/hermes-cloud-pstack/`](integrations/hermes-cloud-pstack/) | Agent-invoked routing and role tools |
+| [`integrations/hermes-pr-evidence/`](integrations/hermes-pr-evidence/) | SOUL, evidence skills, and attributed browser skill |
+| [`deploy/`](deploy/) | Image recipes and service units |
+| [`scripts/`](scripts/) · [`tests/`](tests/) | Operator tools and checks |
+| [`docs/`](docs/) | Current guides and historical design records |
+| [`LICENSES/`](LICENSES/) | Preserved upstream licenses and provenance |
 
-The private repository includes the implementation, MCP, skills, tests, and
-documentation. It excludes credentials, provider logins, databases, virtual
-environments, generated images/archives, recordings, raw reviews, and task output.
-Historical documentation refers to local `evidence/` and `reviews/` files that are
-deliberately not published; those references are historical receipts, not bundled
-verification artifacts.
+Internal Python packages and services retain their `cloudworkbench` names.
+Credentials, databases, raw reviews, recordings, and task outputs are excluded.
+Historical documents can reference local evidence that is intentionally absent.
 
-Publishing this source does not redeploy the host or establish fresh live-provider
-verification. The optional complete multi-model workflow has a recorded Fable
-quota limitation; see its guide for the precise evidence and limits. GitHub
-access for other agents requires credentials authorized to this private repo.
+</details>
 
-See [LICENSING.md](LICENSING.md) for the scope of upstream licenses. No public
-open-source license has been selected for the original integration code.
+## License and acknowledgments
+
+Original integration code is [MIT licensed](LICENSE). This project builds on
+[Crabbox](https://github.com/openclaw/crabbox),
+[Hermes Agent](https://github.com/NousResearch/hermes-agent),
+[Lauren Tan's pstack](https://github.com/cursor/plugins/tree/main/pstack),
+[its Hermes port](https://github.com/jmporchet/pstack-hermes), and
+[Vercel's agent-browser](https://github.com/vercel-labs/agent-browser).
+The [Hermes Jev router](https://github.com/ussyverse/hermes-jev-router) informed
+the routing design.
+
+Copied upstream material retains its own terms, including **Apache 2.0 for the
+browser skill**. See [licensing scope](LICENSING.md) and
+[full credits, source pins, and notices](THIRD_PARTY_NOTICES.md).
+
+Independent integration maintained by Thomas Bekkers; not an official release
+of, or endorsed by, those upstream projects.
