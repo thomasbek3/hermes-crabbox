@@ -112,7 +112,7 @@ After connecting, ask your agent:
 ## How it works
 
 ```mermaid
-flowchart LR
+flowchart TB
     P["Parent agent<br/>Grokbot · Hermes · Codex · Claude"] -->|"MCP or HTTP · Tailscale"| A["Task API + queue"]
     A --> H
     subgraph C["Crabbox task container · one workspace"]
