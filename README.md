@@ -127,7 +127,8 @@ python3 scripts/install-delegation-skill.py --agent hermes \
 
 The installer copies the skill and HTTP caller to `~/.hermes/skills/`, preserves
 existing modified installations, and does not touch credentials or start a job.
-Use `--agent codex` for `~/.agents/skills/`, or `--skills-dir PATH` for a custom
+Use `--agent codex`, `--agent claude`, or `--agent cursor` for those harnesses,
+or `--skills-dir PATH` for a custom
 agent/profile skills directory.
 
 **Other agents:** use the [MCP connection guide](docs/QUICKSTART.md#add-mcp-or-keep-using-http)
