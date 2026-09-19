@@ -88,8 +88,8 @@ review. [Screenshots, recordings, and PR evidence →](docs/PR-EVIDENCE.md)
 > **Before connecting:** the machine running the agent's tools needs Tailscale
 > access to the configured Omarchy host and a dedicated service credential.
 > The Cursor button adds the server configuration; it does not create access.
-> Downloads require permission to this private GitHub repo. No token is embedded
-> in a button, example, or skill bundle.
+> Source and skill downloads are public. No token is embedded in a button,
+> example, or skill bundle.
 
 ### Codex: one command to register MCP
 
@@ -175,8 +175,8 @@ see [status and known limits](docs/STATUS.md). The current ceiling is eight
 concurrent tasks, subject to resource admission—not an eight-task load-test claim.
 
 PR publishing uses the parent agent's authorized GitHub access. Workers do not
-receive its GitHub credentials. Public release of the repository and automatic
-onboarding of remote agents have not been enabled.
+receive its GitHub credentials. The source is public; access to a running worker
+host still requires explicit caller provisioning.
 
 ## Develop and contribute
 

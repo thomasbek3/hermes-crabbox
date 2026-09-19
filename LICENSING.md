@@ -18,8 +18,7 @@ See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for exact source revisions,
 file boundaries, modifications, and attribution. Full upstream license texts
 are preserved under [LICENSES/](LICENSES/).
 
-Repository visibility is separate from licensing: this GitHub repository is
-currently private. Runtime access, provider accounts, and Tailscale membership
+This GitHub repository is public. Runtime access, provider accounts, and Tailscale membership
 are not granted by the software license. Before redistributing built images or
 binaries, inventory the dependencies actually included and fulfill their own
 notice and source requirements; the source inventory is not an image SBOM.
